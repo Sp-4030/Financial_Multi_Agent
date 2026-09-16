@@ -53,5 +53,3 @@ htmlcov/
 *.swp
 *.swo
 
-test.py
-run_app.cmd
