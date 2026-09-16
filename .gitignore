@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+ENV/
+env/
+
+# Environment / secrets
+.env
+.env.*
+*.pem
+*.key
+
+# Jupyter / notebooks
+.ipynb_checkpoints/
+
+# Build / distribution
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Logs
+*.log
+logs/
+
+# Local data / uploads
+uploads/
+!uploads/.gitkeep
+vector_db/
+!vector_db/.gitkeep
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Coverage / test outputs
+.coverage
+.coverage.*
+htmlcov/
+.pytype/
+
+# Temporary files
+*.tmp
+*.swp
+*.swo
+
+test.py
+run_app.cmd

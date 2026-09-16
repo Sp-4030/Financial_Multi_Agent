@@ -1,0 +1,29 @@
+# PDF processing
+pypdf
+
+# Document chunking
+langchain
+langchain-text-splitters
+
+# Embeddings
+sentence-transformers
+
+# Vector database
+chromadb
+
+# Environment variables
+python-dotenv
+
+# Backend
+fastapi
+uvicorn
+python-multipart
+
+# Frontend
+streamlit
+
+# LangGraph workflow
+langgraph
+
+# LangChain integrations
+langchain-community
