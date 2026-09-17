@@ -37,7 +37,7 @@ for pdf_path in pdf_files:
     print("Processing:", pdf_path.name)
 
     # Dynamic company name
-    company = pdf_path.stem
+    company = pdf_path.name
 
     # 1. PDF → Text
     text = extract_text_from_pdf(str(pdf_path))
