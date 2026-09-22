@@ -42,21 +42,21 @@ Project is currently under active development as part of the Infosys Springboard
 📊 Current Pipeline
 
 Financial PDF
-     ↓
+     ↓<br>
 PDF Text Extraction       ✅
-     ↓
+     ↓<br>
 Text Chunking             ✅
-     ↓
+     ↓<br>
 Embeddings                ✅
-     ↓
+     ↓<br>
 ChromaDB                  ✅
-     ↓
+     ↓<br>
 Vector Search             🔄
-     ↓
+     ↓<br>
 Research Session          🔄
-     ↓
+     ↓<br>
 Multi-Agent Workflow      🔄
-     ↓
+     ↓<br>
 Financial Insights        📋
-     ↓
+     ↓<br>
 Final Report              📋
