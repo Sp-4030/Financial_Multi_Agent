@@ -43,23 +43,23 @@ Project is currently under active development as part of the Infosys Springboard
 
 Financial PDF
 ↓
-PDF Text Extraction ✅
+PDF Text Extraction   ✅
 ↓
-Text Chunking ✅
+Text Chunking   ✅
 ↓
-Embeddings ✅
+Embeddings   ✅
 ↓
-ChromaDB ✅
+ChromaDB   ✅
 ↓
-Vector Search 🔄
+Vector Search   🔄
 ↓
-Research Session 🔄
+Research Session   🔄
 ↓
-Multi-Agent Workflow 🔄
+Multi-Agent Workflow   🔄
 ↓
-Financial Insights 📋
+Financial Insights   📋
 ↓
-Final Report 📋
+Final Report   📋
 
 Current Milestone:
 Milestone 2 — Document Processing, Vector Database Integration, Research Workspace & Multi-Agent Workflow Development.
