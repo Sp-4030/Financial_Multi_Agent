@@ -42,24 +42,21 @@ Project is currently under active development as part of the Infosys Springboard
 📊 Current Pipeline
 
 Financial PDF
-↓
-PDF Text Extraction   ✅
-↓
-Text Chunking   ✅
-↓
-Embeddings   ✅
-↓
-ChromaDB   ✅
-↓
-Vector Search   🔄
-↓
-Research Session   🔄
-↓
-Multi-Agent Workflow   🔄
-↓
-Financial Insights   📋
-↓
-Final Report   📋
-
-Current Milestone:
-Milestone 2 — Document Processing, Vector Database Integration, Research Workspace & Multi-Agent Workflow Development.
+     ↓
+PDF Text Extraction       ✅
+     ↓
+Text Chunking             ✅
+     ↓
+Embeddings                ✅
+     ↓
+ChromaDB                  ✅
+     ↓
+Vector Search             🔄
+     ↓
+Research Session          🔄
+     ↓
+Multi-Agent Workflow      🔄
+     ↓
+Financial Insights        📋
+     ↓
+Final Report              📋
