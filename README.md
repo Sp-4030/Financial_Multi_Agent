@@ -61,4 +61,6 @@ Financial Insights        📋
      ↓
 Final Report              📋
 
-«Current Milestone: Milestone 2 — Document Processing, Vector Database Integration, Research Workspace & Multi-Agent Workflow Development.»
+Current Milestone:
+Milestone 2 — Document Processing, Vector Database Integration, Research Workspace & Multi-Agent Workflow Development.
+
