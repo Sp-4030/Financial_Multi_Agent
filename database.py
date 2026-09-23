@@ -20,7 +20,21 @@ def create_tables():
             created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     """)
-
+    
+    #documents table
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS documents (
+        document_id TEXT PRIMARY KEY,
+        session_id INTEGER NOT NULL,
+        filename TEXT NOT NULL,
+        company TEXT,
+        file_path TEXT,
+        status TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (session_id)
+        REFERENCES research_sessions(session_id)
+        )
+    """)
     connection.commit()
     connection.close()
 
