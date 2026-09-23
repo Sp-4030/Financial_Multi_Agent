@@ -2,6 +2,37 @@
 
 Project is currently under active development as part of the **Infosys Springboard Virtual Internship**.
 
+## 📊 Current Pipeline
+
+```text
+Financial PDF Scraping    ✅
+      ↓
+PDF Text Extraction       ✅
+      ↓
+Text Chunking             ✅
+      ↓
+Embeddings                ✅
+      ↓
+ChromaDB                  ✅
+      ↓
+Vector Search             🔄
+      ↓
+Research Session          ✅
+      ↓
+Document Agent            ✅
+      ↓
+Extraction Agent          ✅
+      ↓
+LangGraph Workflow        🔄
+      ↓
+Financial Analysis        🔄
+      ↓
+Financial Insights        📋
+      ↓
+Final Report              📋
+
+
+
 ### ✅ Completed
 
 - [x] Studied financial document structures
@@ -47,31 +78,3 @@ Project is currently under active development as part of the **Infosys Springboa
 
 ---
 
-## 📊 Current Pipeline
-
-```text
-Financial PDF
-      ↓
-PDF Text Extraction       ✅
-      ↓
-Text Chunking             ✅
-      ↓
-Embeddings                ✅
-      ↓
-ChromaDB                  ✅
-      ↓
-Vector Search             🔄
-      ↓
-Research Session          ✅
-      ↓
-Document Agent            ✅
-      ↓
-Extraction Agent          ✅
-      ↓
-LangGraph Workflow        🔄
-      ↓
-Financial Analysis        🔄
-      ↓
-Financial Insights        📋
-      ↓
-Final Report              📋
