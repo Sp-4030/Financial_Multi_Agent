@@ -1,6 +1,7 @@
 """FastAPI backend entry point."""
 
 from pathlib import Path
+from uuid import uuid4
 
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from pydantic import BaseModel
@@ -8,54 +9,38 @@ from pydantic import BaseModel
 from agents.document_agent import DocumentAgent
 from database import get_connection, create_tables
 
+
 # FastAPI App
-
-
 app = FastAPI(title="Financial Multi-Agent API")
 
 
 # Create Database Tables
-
-
 create_tables()
 
 
 # Upload Folder
-
-
 UPLOAD_FOLDER = Path("data/uploads")
-
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 
 
 # Document Agent
-
-
 document_agent = DocumentAgent()
 
 
 # Research Session Model
-
-
 class SessionCreate(BaseModel):
     name: str
 
 
 # Health Check
-
-
 @app.get("/health")
 def health_check() -> dict[str, str]:
-
     return {"status": "ok"}
 
 
 # Create Research Session
-
-
 @app.post("/sessions")
 def create_session(session: SessionCreate):
-
     connection = get_connection()
     cursor = connection.cursor()
 
@@ -72,18 +57,22 @@ def create_session(session: SessionCreate):
     connection.commit()
     connection.close()
 
-    return {"session_id": session_id, "name": session.name, "status": "created"}
+    return {
+        "session_id": session_id,
+        "name": session.name,
+        "status": "created",
+    }
 
 
 # Upload Document
-
-
 @app.post("/upload")
-async def upload_document(session_id: int, file: UploadFile = File(...)):
+async def upload_document(
+    session_id: int,
+    file: UploadFile = File(...),
+):
     """Upload and index a financial PDF."""
 
     # Check Research Session
-
     connection = get_connection()
     cursor = connection.cursor()
 
@@ -99,21 +88,21 @@ async def upload_document(session_id: int, file: UploadFile = File(...)):
     session = cursor.fetchone()
 
     if not session:
-
         connection.close()
-
-        raise HTTPException(status_code=404, detail="Research session not found")
+        raise HTTPException(
+            status_code=404,
+            detail="Research session not found",
+        )
 
     # Check PDF File
-
     if not file.filename.lower().endswith(".pdf"):
-
         connection.close()
-
-        raise HTTPException(status_code=400, detail="Only PDF files are allowed")
+        raise HTTPException(
+            status_code=400,
+            detail="Only PDF files are allowed",
+        )
 
     # Save Uploaded PDF
-
     file_path = UPLOAD_FOLDER / file.filename
 
     contents = await file.read()
@@ -122,11 +111,12 @@ async def upload_document(session_id: int, file: UploadFile = File(...)):
         f.write(contents)
 
     # Process PDF
-
     result = document_agent.process_document(str(file_path))
 
-    # Save Document Information
+    # Generate UNIQUE database document ID
+    database_document_id = str(uuid4())
 
+    # Save Document Information
     cursor.execute(
         """
         INSERT INTO documents (
@@ -140,7 +130,7 @@ async def upload_document(session_id: int, file: UploadFile = File(...)):
         VALUES (?, ?, ?, ?, ?, ?)
         """,
         (
-            result["document_id"],
+            database_document_id,
             session_id,
             file.filename,
             result["company"],
@@ -153,10 +143,10 @@ async def upload_document(session_id: int, file: UploadFile = File(...)):
     connection.close()
 
     # Response
-
     return {
         "message": "Document uploaded successfully",
         "session_id": session_id,
+        "document_id": database_document_id,
         "filename": file.filename,
         "result": result,
     }
