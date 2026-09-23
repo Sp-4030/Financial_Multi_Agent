@@ -1,13 +1,15 @@
-🚧 Current Development Status
+## 🚧 Current Development Status
 
-Project is currently under active development as part of the Infosys Springboard Virtual Internship.
+Project is currently under active development as part of the **Infosys Springboard Virtual Internship**.
 
-✅ Completed
+### ✅ Completed
 
 - [x] Studied financial document structures
 - [x] Finalized initial system architecture
 - [x] Designed multi-agent architecture and agent responsibilities
-- [x] Implemented PDF document loading
+- [x] Implemented Research Workspace
+- [x] Implemented Research Session Management
+- [x] Implemented PDF document upload
 - [x] Implemented PDF text extraction
 - [x] Implemented text chunking
 - [x] Implemented embedding generation
@@ -16,47 +18,60 @@ Project is currently under active development as part of the Infosys Springboard
 - [x] Added company/document metadata
 - [x] Implemented unique IDs for document chunks
 - [x] Successfully indexed multiple financial documents into ChromaDB
-- [x] Basic semantic/vector search foundation completed
+- [x] Implemented basic semantic/vector search foundation
+- [x] Implemented Extraction Agent
+- [x] Implemented extraction of key financial metrics
+- [x] Implemented financial ratio calculation
+- [x] Tested financial document processing pipeline
 
-🔄 Currently Working On
+### 🔄 Currently Working On
 
-- [ ] Research workspace
-- [ ] Research session management
-- [ ] Connecting Document Agent with the application workflow
+- [ ] Connecting Document Agent with the complete application workflow
 - [ ] LangGraph agent orchestration
 - [ ] Connecting specialized financial analysis agents
-- [ ] End-to-end financial research workflow
-
-📋 Upcoming
-
-- [ ] Research Agent
-- [ ] Extraction Agent
 - [ ] Red Flag Agent
 - [ ] Comparison Agent
+- [ ] Research Agent
+- [ ] End-to-end financial research workflow
+
+### 📋 Upcoming
+
 - [ ] Report Agent
 - [ ] Complete RAG-based financial question answering
 - [ ] Company comparison
-- [ ] Financial insights and report generation
-- [ ] Final Streamlit interface integration
+- [ ] Financial risk and red-flag analysis
+- [ ] Financial insights generation
+- [ ] Automated report generation
+- [ ] Complete Streamlit interface integration
+- [ ] End-to-end testing and optimization
 
-📊 Current Pipeline
+---
 
+## 📊 Current Pipeline
+
+```text
 Financial PDF
-  <br>↓<br>
+      ↓
 PDF Text Extraction       ✅
-  <br>↓<br>
+      ↓
 Text Chunking             ✅
-  <br>↓<br>
+      ↓
 Embeddings                ✅
-  <br>↓<br>
+      ↓
 ChromaDB                  ✅
-  <br>↓<br>
+      ↓
 Vector Search             🔄
-  <br>↓<br>
-Research Session          🔄
-  <br>↓<br>
-Multi-Agent Workflow      🔄
-  <br>↓<br>
+      ↓
+Research Session          ✅
+      ↓
+Document Agent            ✅
+      ↓
+Extraction Agent          ✅
+      ↓
+LangGraph Workflow        🔄
+      ↓
+Financial Analysis        🔄
+      ↓
 Financial Insights        📋
-  <br>↓<br>
+      ↓
 Final Report              📋
