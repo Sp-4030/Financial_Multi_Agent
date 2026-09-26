@@ -32,7 +32,6 @@ Financial Insights        📋
 Final Report              📋
 
 
-
 ### ✅ Completed
 
 - [x] Studied financial document structures
@@ -77,4 +76,116 @@ Final Report              📋
 - [ ] End-to-end testing and optimization
 
 ---
+## ⚙️ Installation & Setup
+
+### 1. Clone the Repository
+
+```bash
+git clone https://github.com/Sp-4030/Financial_Multi_Agent.git
+cd Financial_Multi_Agent
+```
+
+### 2. Create a Virtual Environment
+
+```bash
+python -m venv venv
+```
+
+Activate the virtual environment:
+
+**Windows:**
+
+```bash
+venv\Scripts\activate
+```
+
+**Linux / macOS:**
+
+```bash
+source venv/bin/activate
+```
+
+### 3. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 4. Run the Backend
+
+From the project root directory:
+
+```bash
+python -m uvicorn backend.main:app --reload
+```
+
+Backend will run at:
+
+```text
+http://127.0.0.1:8000
+```
+
+### 5. Run the Streamlit Frontend
+
+Open another terminal, activate the virtual environment, and run:
+
+```bash
+streamlit run frontend/app.py
+```
+
+Frontend will run at:
+
+```text
+http://localhost:8501
+```
+
+### 6. Project Workflow
+
+Once both backend and frontend are running:
+
+```text
+Upload Financial PDF
+        ↓
+PDF Text Extraction
+        ↓
+Text Chunking
+        ↓
+Embedding Generation
+        ↓
+ChromaDB Indexing
+        ↓
+Vector Search
+        ↓
+Document Agent
+        ↓
+Extraction / Analysis Agents
+        ↓
+LangGraph Workflow
+        ↓
+Financial Insights
+        ↓
+Final Report
+```
+
+### 8. Verify Installation
+
+Check that the backend is running:
+
+```text
+http://127.0.0.1:8000
+```
+
+You should receive:
+
+```json
+{
+    "status": "ok"
+}
+```
+
+Then open the Streamlit application:
+
+```text
+http://localhost:8501
+```
 
