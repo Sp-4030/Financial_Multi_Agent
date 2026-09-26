@@ -12,4 +12,5 @@ for metadata, id in zip(company["metadatas"], company["ids"]):
     result.setdefault(name, []).append(id)
 
 for name, ids in result.items():
+    print("\nTotal chunk Pdf :-", name, len(ids))
     print(name, ids[:3])

@@ -1,86 +1,56 @@
 import chromadb
 from pathlib import Path
 
-from utils.pdf_parser import extract_text_from_pdf
-from utils.chunking import split_text
-from utils.embeddings import create_embeddings
+from agents.document_agent import DocumentAgent
+
+# ChromaDB Client
+client = chromadb.PersistentClient(path="vector_db")
+
+collection = client.get_or_create_collection(name="financial_documents")
 
 
-# Seed PDF folder
-seed_folder = Path("data/seed_documents")
+# Document Agent
+document_agent = DocumentAgent()
 
 
-# Create ChromaDB client
-client = chromadb.PersistentClient(
-    path="vector_db"
-)
+# PDF to Test
+pdf_path = Path("data/seed_documents/Infosys.pdf")
 
-
-# Create collection
-collection = client.get_or_create_collection(
-    name="financial_documents"
-)
-
-
-# Find all PDFs dynamically
-pdf_files = list(seed_folder.glob("*.pdf"))
-
-if not pdf_files:
-    print("No PDF files found!")
+if not pdf_path.exists():
+    print("PDF not found:", pdf_path)
     exit()
 
 
-# Process every PDF
-for pdf_path in pdf_files:
+# Process PDF using DocumentAgent
+print("=" * 60)
+print("Processing:", pdf_path.name)
 
-    print("\n" + "=" * 60)
-    print("Processing:", pdf_path.name)
-
-    # Dynamic company name
-    company = pdf_path.name
-
-    # 1. PDF → Text
-    text = extract_text_from_pdf(str(pdf_path))
-
-    if not text.strip():
-        print("No text found. Skipping:", company)
-        continue
-
-    # 2. Text → Chunks
-    chunks = split_text(text)
-
-    print("Chunks:", len(chunks))
-
-    # 3. Chunks → Embeddings
-    embeddings = create_embeddings(chunks)
-
-    # 4. Dynamic IDs
-    ids = [
-        f"{company}_chunk_{i}"
-        for i in range(len(chunks))
-    ]
-
-    # 5. Metadata
-    metadatas = [
-        {
-            "company": company,
-            "document_name": pdf_path.name,
-            "chunk_number": i
-        }
-        for i in range(len(chunks))
-    ]
-
-    # 6. Store in ChromaDB
-    collection.add(
-        ids=ids,
-        documents=chunks,
-        embeddings=embeddings.tolist(),
-        metadatas=metadatas
-    )
-
-    print("Successfully stored:", company)
+result = document_agent.process_document(str(pdf_path))
 
 
+# Print DocumentAgent Result
+print("\nDocument Agent Result:")
+print(result)
 
-print("All PDFs processed successfully!")
-print("Total chunks in ChromaDB:", collection.count())
+
+# Check ChromaDB
+print("\n" + "=" * 60)
+print("ChromaDB Check")
+
+print("Total chunks:", collection.count())
+
+
+# Get stored data
+data = collection.get(
+    where={"document_name": pdf_path.name}, include=["documents", "metadatas"]
+)
+
+
+# Display Results
+print("\nStored Chunks:", len(data["ids"]))
+
+for i, chunk_id in enumerate(data["ids"][:5]):
+
+    print("\n-----------------------------")
+    print("ID:", chunk_id)
+    print("Metadata:", data["metadatas"][i])
