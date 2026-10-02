@@ -35,13 +35,19 @@ flowchart LR
     I --> N
     M --> N
 
-    F --> J[Conversational Chat Q&A]
+    F --> J[Grounded Financial Q&A]
     I --> K[Evidence-Based Risk Review]
     M --> L[Cross-Company Benchmarking]
-    N --> P[Grounded Financial Report]
+    N --> R[Final Financial Report]
 
-    Q[Google Gemini API] --> F
-    Q --> I
+    J --> S[Streamlit Conversational UI]
+    K --> S
+    L --> S
+    R --> S
+
+    P[Google Gemini API] --> F
+    P --> I
+    P --> N
 ```
 
 ## Architecture Overview
@@ -53,17 +59,17 @@ Document Agent (Text Extraction + Chunking + all-MiniLM-L6-v2 Embeddings)
         ↓
 ChromaDB Persistent Vector Storage
         ↓
-Extraction Agent (10 Core Metrics + Ratios + Comparative Periods)
+LangGraph Multi-Agent Orchestration
+(Document Agent ➔ Extraction Agent ➔ Red Flag Agent)
         ↓
-Red Flag Agent (Risk Signals + Auditor Language + Pattern Detection)
-        ↓
-LangGraph Workflow Orchestration
+Google Gemini API (gemini-3.8-flash)
+(AI Reasoning + Risk Detection + Report Synthesis)
         ↓
 Research Agent ──┬── Comparison Agent
                  ↓
-      Report Agent (Executive Summary + Key Financials + Sources)
+Report Agent (Executive Summary + Key Financials + Citations)
                  ↓
-Streamlit Conversational UI (Chat + Pipeline Viewer + Benchmarking + Reports)
+Streamlit Conversational UI (Chat Q&A + Pipeline Viewer + Benchmarking + Reports)
 ```
 
 ## ✅ Completed Features
