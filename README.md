@@ -1,17 +1,17 @@
 # Financial Multi-Agent System
 
-A financial research and risk-analysis multi-agent system for annual-report PDFs. It stores document chunks in ChromaDB and orchestrates specialized agents for extraction, research, red-flag analysis, cross-company benchmarking, and report generation using LangGraph, FastAPI, and Streamlit.
+A financial research and risk-analysis multi-agent system for annual-report PDFs. It stores document chunks in ChromaDB and uses Google Gemini API agents for extraction, research, red-flag analysis, cross-company benchmarking, and report generation using LangGraph, FastAPI, and Streamlit.
 
-## Milestone 3 Status
+## Milestone Status
 
-Status: Complete
+Status: Complete (Powered by Google Gemini API)
 
 This project has successfully implemented all 7 Milestone 3 requirements:
 
-- **Red Flag Agent**: Automated detection of rising debt, falling profit margins, revenue decline, net profit decline, auditor qualifications, and unusual financial patterns.
+- **Red Flag Agent**: Automated detection of rising debt, falling profit margins, revenue decline, net profit decline, auditor qualifications, and unusual financial patterns with Google Gemini reasoning.
 - **Multi-Agent Orchestration Layer**: LangGraph workflow chaining Document Agent ➜ Extraction Agent ➜ Red Flag Agent with shared state and graceful error handling.
 - **Testing & Validation**: End-to-end verification covering agents, LangGraph workflow, FastAPI endpoints, and source faithfulness guarantees.
-- **Research Agent**: Multi-part question decomposition, ChromaDB vector retrieval using SentenceTransformers, fact extraction, and verifiable source citations.
+- **Research Agent**: Multi-part question decomposition, ChromaDB vector retrieval using SentenceTransformers, fact extraction, and Google Gemini synthesized answers with verifiable citations.
 - **Comparison Agent**: Cross-company metric benchmarking across 10 financial metrics, side-by-side Markdown tables, and safe missing-value handling (`N/A`).
 - **Conversational Research Interface**: Interactive Streamlit UI with `st.chat_input` and `st.chat_message`, presenting reasoned answers, evidence bullet points, and source citations.
 - **Initial Report Agent**: Grounded report synthesis featuring Executive Summary, Key Financials, Red Flags, Peer Comparison, Research Findings, and Sources.
@@ -39,6 +39,9 @@ flowchart LR
     I --> K[Evidence-Based Risk Review]
     M --> L[Cross-Company Benchmarking]
     N --> P[Grounded Financial Report]
+
+    Q[Google Gemini API] --> F
+    Q --> I
 ```
 
 ## Architecture Overview
@@ -70,6 +73,7 @@ Streamlit Conversational UI (Chat + Pipeline Viewer + Benchmarking + Reports)
 - [x] Implemented Extraction Agent for 10 core financial metrics & ratios (Revenue, Net Profit, Operating Profit, Total Assets, Total Liabilities, Debt, EPS, Profit Margin, ROE, ROA)
 - [x] Added comparative prior-period extraction and YoY revenue trend calculations
 - [x] Implemented Red Flag Agent for rising debt, falling margins, revenue decline, profit decline, auditor qualifications, and unusual patterns
+- [x] Integrated Google Gemini API for deep financial reasoning and risk analysis
 - [x] Implemented Multi-Agent Orchestration using LangGraph StateGraph (`DocumentAgent` ➜ `ExtractionAgent` ➜ `RedFlagAgent`)
 - [x] Implemented Research Agent with multi-part query decomposition, semantic search, and grounded chunk citations
 - [x] Implemented Comparison Agent for cross-company financial benchmarking with Markdown tables
@@ -128,7 +132,18 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Run the Backend (FastAPI)
+### 4. Configure Google Gemini API Key
+
+Create a `.env` file in the project root directory and set your Gemini API key:
+
+```env
+GEMINI_API_KEY=your_gemini_api_key_here
+GEMINI_MODEL=gemini-3.8-flash
+```
+
+Get your free Gemini API key from [Google AI Studio](https://aistudio.google.com/).
+
+### 5. Run the Backend (FastAPI)
 
 From the project root:
 
@@ -148,7 +163,7 @@ FastAPI Interactive Docs (Swagger UI):
 http://127.0.0.1:8000/docs
 ```
 
-### 5. Run the Frontend (Streamlit)
+### 6. Run the Frontend (Streamlit)
 
 Open a second terminal, activate the virtual environment, and run:
 
@@ -168,7 +183,7 @@ Or on Windows, launch both backend and frontend together using:
 run_app.cmd
 ```
 
-### 6. Verify the Setup
+### 7. Verify the Setup
 
 Check the backend health:
 
@@ -217,6 +232,6 @@ Streamlit Conversational UI (Answer + Evidence + Sources)
 
 ## Notes
 
-- The system runs locally using ChromaDB vector database and SentenceTransformers (`all-MiniLM-L6-v2`) embeddings.
+- The system runs using ChromaDB vector database, SentenceTransformers (`all-MiniLM-L6-v2`) embeddings, and Google Gemini API (`gemini-3.8-flash`) for deep financial reasoning and risk analysis.
 - The workflow enforces source faithfulness: answers and evidence are strictly tied to indexed PDF chunks, and unsupported figures are never fabricated.
 - Older or incompatible local database files may cause errors after changing database dependencies. If this happens, stop the application and remove the `vector_db/` folder and `research.db` file, then restart the application to create fresh databases. Back up these files first if you need to keep existing data.
