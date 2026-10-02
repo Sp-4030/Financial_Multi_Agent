@@ -1,6 +1,31 @@
+# Financial Multi-Agent System
+
+A local financial research and risk-analysis system that processes annual-report PDFs, stores document chunks in ChromaDB, and uses local LLM agents for extraction, research, and red-flag analysis.
+
 ## 🚧 Current Development Status
 
 Project is currently under active development as part of the **Infosys Springboard Virtual Internship**.
+
+## 📊 Work Diagram
+
+```mermaid
+flowchart LR
+    A[Annual Report PDF] --> B[Document Agent]
+    B --> C[PDF Text Extraction]
+    C --> D[Chunking + Embeddings]
+    D --> E[ChromaDB Vector Store]
+    E --> F[Research Agent]
+    E --> G[Extraction Agent]
+    G --> H[Financial Metrics]
+    H --> I[Red Flag Agent]
+    F --> J[Grounded Financial Q&A]
+    I --> K[Risk Review and Evidence Check]
+    J --> L[Financial Insights / Final Report]
+    K --> L
+
+    M[Local Ollama LLM] --> F
+    M --> I
+```
 
 ## 📊 Current Pipeline
 
@@ -15,7 +40,7 @@ Embeddings                ✅
       ↓
 ChromaDB                  ✅
       ↓
-Vector Search             🔄
+Vector Search             ✅
       ↓
 Research Session          ✅
       ↓
@@ -23,13 +48,13 @@ Document Agent            ✅
       ↓
 Extraction Agent          ✅
       ↓
-LangGraph Workflow        🔄
+LangGraph Workflow        ✅
       ↓
-Financial Analysis        🔄
+Financial Analysis        ✅
       ↓
-Financial Insights        📋
+Financial Insights        ✅
       ↓
-Final Report              📋
+Final Report              ✅
 
 
 ### ✅ Completed
@@ -48,29 +73,24 @@ Final Report              📋
 - [x] Added company/document metadata
 - [x] Implemented unique IDs for document chunks
 - [x] Successfully indexed multiple financial documents into ChromaDB
-- [x] Implemented basic semantic/vector search foundation
+- [x] Implemented semantic/vector search foundation
 - [x] Implemented Extraction Agent
 - [x] Implemented extraction of key financial metrics
 - [x] Implemented financial ratio calculation
-- [x] Tested financial document processing pipeline
+- [x] Fixed false-positive red-flag classification logic
+- [x] Improved company-aware research retrieval
+- [x] Validated workflow on seeded annual-report PDFs
 
 ### 🔄 Currently Working On
 
-- [ ] Connecting Document Agent with the complete application workflow
-- [ ] LangGraph agent orchestration
-- [ ] Connecting specialized financial analysis agents
-- [ ] Red Flag Agent
-- [ ] Comparison Agent
-- [ ] Research Agent
-- [ ] End-to-end financial research workflow
+- [ ] Formal milestone regression test suite
+- [ ] Additional PDF edge-case validation
+- [ ] UI polish and final reporting improvements
 
 ### 📋 Upcoming
 
-- [ ] Report Agent
-- [ ] Complete RAG-based financial question answering
-- [ ] Company comparison
-- [ ] Financial risk and red-flag analysis
-- [ ] Financial insights generation
+- [ ] Report Agent enhancements
+- [ ] Company comparison module
 - [ ] Automated report generation
 - [ ] Complete Streamlit interface integration
 - [ ] End-to-end testing and optimization
