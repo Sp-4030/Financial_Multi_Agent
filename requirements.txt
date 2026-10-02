@@ -7,6 +7,8 @@ langchain-text-splitters
 
 # Embeddings
 sentence-transformers
+torch
+torchvision
 
 # Vector database
 chromadb
@@ -27,3 +29,6 @@ langgraph
 
 # LangChain integrations
 langchain-community
+
+# Local LLM
+ollama
