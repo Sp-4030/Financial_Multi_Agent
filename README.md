@@ -50,27 +50,6 @@ flowchart LR
     P --> N
 ```
 
-## Architecture Overview
-
-```text
-Annual Report PDF Upload
-        ↓
-Document Agent (Text Extraction + Chunking + all-MiniLM-L6-v2 Embeddings)
-        ↓
-ChromaDB Persistent Vector Storage
-        ↓
-LangGraph Multi-Agent Orchestration
-(Document Agent ➔ Extraction Agent ➔ Red Flag Agent)
-        ↓
-Google Gemini API (gemini-3.8-flash)
-(AI Reasoning + Risk Detection + Report Synthesis)
-        ↓
-Research Agent ──┬── Comparison Agent
-                 ↓
-Report Agent (Executive Summary + Key Financials + Citations)
-                 ↓
-Streamlit Conversational UI (Chat Q&A + Pipeline Viewer + Benchmarking + Reports)
-```
 
 ## ✅ Completed Features
 
