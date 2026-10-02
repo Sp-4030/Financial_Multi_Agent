@@ -1,12 +1,19 @@
 # Financial Multi-Agent System
 
-A local financial research and risk-analysis system that processes annual-report PDFs, stores document chunks in ChromaDB, and uses local LLM agents for extraction, research, and red-flag analysis.
+A local financial research and risk-analysis system for annual-report PDFs. It stores document chunks in ChromaDB and uses local LLM agents for extraction, research, and red-flag analysis without depending on external cloud services.
 
-## 🚧 Current Development Status
+## Milestone 3 Status
 
-Project is currently under active development as part of the **Infosys Springboard Virtual Internship**.
+Status: Complete
 
-## 📊 Work Diagram
+This project has successfully completed Milestone 3 for the local financial multi-agent workflow, including:
+
+- PDF ingestion and indexing
+- company-aware research retrieval
+- evidence-based red-flag analysis
+- end-to-end validation using seeded annual-report documents
+
+## Work Diagram
 
 ```mermaid
 flowchart LR
@@ -19,83 +26,70 @@ flowchart LR
     G --> H[Financial Metrics]
     H --> I[Red Flag Agent]
     F --> J[Grounded Financial Q&A]
-    I --> K[Risk Review and Evidence Check]
+    I --> K[Evidence-Based Risk Review]
     J --> L[Financial Insights / Final Report]
     K --> L
 
-    M[Local Ollama LLM] --> F
+    M[Local LLM via Ollama] --> F
     M --> I
 ```
 
-## 📊 Current Pipeline
+## Architecture Overview
 
 ```text
-Financial PDF Scraping    ✅
-      ↓
-PDF Text Extraction       ✅
-      ↓
-Text Chunking             ✅
-      ↓
-Embeddings                ✅
-      ↓
-ChromaDB                  ✅
-      ↓
-Vector Search             ✅
-      ↓
-Research Session          ✅
-      ↓
-Document Agent            ✅
-      ↓
-Extraction Agent          ✅
-      ↓
-LangGraph Workflow        ✅
-      ↓
-Financial Analysis        ✅
-      ↓
-Financial Insights        ✅
-      ↓
-Final Report              ✅
+Annual Report PDF
+        ↓
+Document Agent
+        ↓
+PDF Text Extraction
+        ↓
+Chunking + Embeddings
+        ↓
+ChromaDB Storage
+        ↓
+Research + Extraction + Red-Flag Agents
+        ↓
+LangGraph Workflow
+        ↓
+Financial Analysis + Risk Review
+        ↓
+Final Report / Insights
+```
 
-
-### ✅ Completed
+## ✅ Completed Features
 
 - [x] Studied financial document structures
-- [x] Finalized initial system architecture
-- [x] Designed multi-agent architecture and agent responsibilities
-- [x] Implemented Research Workspace
-- [x] Implemented Research Session Management
-- [x] Implemented PDF document upload
-- [x] Implemented PDF text extraction
-- [x] Implemented text chunking
-- [x] Implemented embedding generation
+- [x] Finalized system architecture
+- [x] Designed multi-agent responsibilities
+- [x] Implemented document ingestion and metadata handling
+- [x] Implemented PDF extraction
+- [x] Implemented text chunking and embedding generation
 - [x] Integrated ChromaDB vector database
-- [x] Implemented multi-PDF ingestion
-- [x] Added company/document metadata
-- [x] Implemented unique IDs for document chunks
-- [x] Successfully indexed multiple financial documents into ChromaDB
-- [x] Implemented semantic/vector search foundation
-- [x] Implemented Extraction Agent
-- [x] Implemented extraction of key financial metrics
+- [x] Implemented multi-document indexing
+- [x] Added company-aware retrieval logic
+- [x] Implemented extraction agent for financial metrics
 - [x] Implemented financial ratio calculation
 - [x] Fixed false-positive red-flag classification logic
-- [x] Improved company-aware research retrieval
+- [x] Improved evidence-based research filtering
 - [x] Validated workflow on seeded annual-report PDFs
+- [x] Completed Milestone 3 requirements
 
-### 🔄 Currently Working On
+## 🔄 Current Focus
 
 - [ ] Formal milestone regression test suite
 - [ ] Additional PDF edge-case validation
-- [ ] UI polish and final reporting improvements
+- [ ] UI polish and reporting improvements
 
-### 📋 Upcoming
+## 📋 Upcoming Enhancements
 
-- [ ] Report Agent enhancements
+- [ ] Report agent enhancements
 - [ ] Company comparison module
 - [ ] Automated report generation
-- [ ] Complete Streamlit interface integration
-- [ ] End-to-end testing and optimization
+- [ ] Final Streamlit experience refinements
+- [ ] End-to-end optimization and validation
 
 ---
+
 ## ⚙️ Installation & Setup
 
 ### 1. Clone the Repository
@@ -108,21 +102,21 @@ cd Financial_Multi_Agent
 ### 2. Create a Virtual Environment
 
 ```bash
-python -m venv venv
+python -m venv .venv
 ```
 
-Activate the virtual environment:
+Activate it:
 
-**Windows:**
+Windows:
 
 ```bash
-venv\Scripts\activate
+.venv\Scripts\activate
 ```
 
-**Linux / macOS:**
+Linux / macOS:
 
 ```bash
-source venv/bin/activate
+source .venv/bin/activate
 ```
 
 ### 3. Install Dependencies
@@ -133,79 +127,83 @@ pip install -r requirements.txt
 
 ### 4. Run the Backend
 
-From the project root directory:
+From the project root:
 
 ```bash
 python -m uvicorn backend.main:app --reload
 ```
 
-Backend will run at:
+Access:
 
 ```text
 http://127.0.0.1:8000
 ```
 
-### 5. Run the Streamlit Frontend
+### 5. Run the Frontend
 
-Open another terminal, activate the virtual environment, and run:
+Open a second terminal and run:
 
 ```bash
 streamlit run frontend/app.py
 ```
 
-Frontend will run at:
+Access:
 
 ```text
 http://localhost:8501
 ```
 
-### 6. Project Workflow
+### 6. Verify the Setup
 
-Once both backend and frontend are running:
-
-```text
-Upload Financial PDF
-        ↓
-PDF Text Extraction
-        ↓
-Text Chunking
-        ↓
-Embedding Generation
-        ↓
-ChromaDB Indexing
-        ↓
-Vector Search
-        ↓
-Document Agent
-        ↓
-Extraction / Analysis Agents
-        ↓
-LangGraph Workflow
-        ↓
-Financial Insights
-        ↓
-Final Report
-```
-
-### 8. Verify Installation
-
-Check that the backend is running:
+Check the backend:
 
 ```text
 http://127.0.0.1:8000
 ```
 
-You should receive:
+Expected response:
 
 ```json
 {
-    "status": "ok"
+  "status": "ok"
 }
 ```
 
-Then open the Streamlit application:
+Open the frontend here:
 
 ```text
 http://localhost:8501
 ```
 
+---
+
+## Project Workflow
+
+Once the app is running, the typical flow is:
+
+```text
+Upload Annual Report PDF
+        ↓
+Extract text from PDF
+        ↓
+Chunk text into sections
+        ↓
+Generate embeddings
+        ↓
+Store in ChromaDB
+        ↓
+Run vector search
+        ↓
+Analyze extracted metrics
+        ↓
+Perform red-flag review
+        ↓
+Generate grounded financial insight
+```
+
+## Notes
+
+- The system is designed to work locally with Ollama and ChromaDB.
+- It is intended for document-grounded financial research and risk analysis.
+- The workflow is optimized to keep answers tied to the source PDFs rather than relying on generic external knowledge.
+- Older or incompatible local database files may cause errors after changing or upgrading database dependencies. If this happens, stop the application and remove the `vector_db/` folder and `research.db` file, then restart the application to create fresh databases. This permanently deletes indexed documents and saved research records, so back up these files first if you need to keep that data. Re-upload your PDFs after the databases are recreated.
