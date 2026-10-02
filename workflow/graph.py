@@ -1,7 +1,8 @@
-from typing import TypedDict, Optional
+from typing import Any, TypedDict
 
 from langgraph.graph import StateGraph, END
 
+from agents.comparison_agent import ComparisonAgent
 from agents.document_agent import DocumentAgent
 from agents.extraction_agent import ExtractionAgent
 from agents.red_flag_agent import RedFlagAgent
@@ -16,6 +17,7 @@ class FinancialState(TypedDict, total=False):
     text: str
     extracted_metrics: dict
     red_flag_result: dict
+    historical_documents: list[dict[str, Any]]
 
 
 # Initialize Agents
@@ -23,12 +25,15 @@ class FinancialState(TypedDict, total=False):
 document_agent = DocumentAgent()
 extraction_agent = ExtractionAgent()
 red_flag_agent = RedFlagAgent()
+comparison_agent = ComparisonAgent()
 
 
 # Document Agent
 def document_node(state: FinancialState):
 
     pdf_path = state["pdf_path"]
+    company = DocumentAgent.company_from_filename(pdf_path)
+    historical_documents = comparison_agent.get_company_documents(company)
 
     result = document_agent.process_document(pdf_path)
 
@@ -37,7 +42,11 @@ def document_node(state: FinancialState):
 
     text = extract_text_from_pdf(pdf_path)
 
-    return {"document_result": result, "text": text}
+    return {
+        "document_result": result,
+        "text": text,
+        "historical_documents": historical_documents,
+    }
 
 
 # Extraction Agent
@@ -56,8 +65,12 @@ def red_flag_node(state: FinancialState):
     text = state["text"]
 
     extracted_metrics = state.get("extracted_metrics", {})
+    historical_documents = state.get("historical_documents", [])
+    prior_metrics = (
+        historical_documents[-1]["metrics"] if historical_documents else None
+    )
 
-    result = red_flag_agent.analyze(text, extracted_metrics)
+    result = red_flag_agent.analyze(text, extracted_metrics, prior_metrics)
 
     return {"red_flag_result": result}
 

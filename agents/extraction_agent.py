@@ -15,13 +15,16 @@ class ExtractionAgent:
         if value is None:
             return None
 
-        value = re.sub(r"[₹$€,]", "", value)
-        value = value.strip()
+        value = re.sub(r"(?i)Rs\.?|INR|[₹$€,]", "", value).strip()
+        is_parenthesized_negative = value.startswith("(") and value.endswith(")")
+        if is_parenthesized_negative:
+            value = value[1:-1].strip()
 
         try:
-            return float(value)
+            number = float(value)
         except ValueError:
             return None
+        return -abs(number) if is_parenthesized_negative else number
 
     # ==========================================
     # Extract First Number
@@ -39,6 +42,34 @@ class ExtractionAgent:
             return match.group(1)
 
         return None
+
+    @staticmethod
+    def _section_with_best_match(text, heading_pattern, label_patterns):
+        headings = list(re.finditer(heading_pattern, text, re.IGNORECASE))
+        if not headings:
+            return text
+
+        best_section = text
+        best_score = -1
+        best_label_matches = 0
+        for heading in headings:
+            section = text[heading.start() : heading.start() + 5000]
+            label_matches = sum(
+                bool(re.search(pattern, section, re.IGNORECASE | re.DOTALL))
+                for pattern in label_patterns
+            )
+            score = label_matches
+            if re.search(
+                r"\b(?:for the years ended|as of)\b",
+                section[:300],
+                re.IGNORECASE,
+            ):
+                score += 2
+            if score > best_score:
+                best_score = score
+                best_label_matches = label_matches
+                best_section = section
+        return best_section if best_label_matches else text
 
     # ==========================================
     # Extract Financial Metrics
@@ -58,7 +89,9 @@ class ExtractionAgent:
             "financial_ratios": {
                 "profit_margin": None,
                 "roe": None,
-                "roa": None
+                "roa": None,
+                "debt_to_assets": None,
+                "liabilities_to_assets": None,
             },
 
             "kpis": [],
@@ -70,80 +103,43 @@ class ExtractionAgent:
         # ==========================================
 
         number_pattern = (
-            r"([$₹€]?\s?\d[\d,]*(?:\.\d+)?)"
+            r"((?:(?:[$₹€]|Rs\.?|INR)\s*)?\(?-?(?:(?:[$₹€]|Rs\.?|INR)\s*)?\d[\d,]*(?:\.\d+)?\)?)"
         )
 
-        # ==========================================
-        # Find Income Statement
-        # ==========================================
-
-        income_start = re.search(
-            r"CONSOLIDATED STATEMENTS OF INCOME",
+        income_labels = [
+            r"\b(?:(?:total\s+)?revenues?|revenue\s+from\s+operations)\b\s*:?\s*"
+            + number_pattern,
+            r"\bnet\s+income\b\s*:?\s*" + number_pattern,
+            r"\bnet\s+profit\s*\(after\s+non-controlling\s+interest\)\s*:?\s*"
+            + number_pattern,
+            r"\b(?:operating\s+income|income\s+from\s+operations)\b\s*:?\s*" + number_pattern,
+            r"\bprofit\s+(?:after\s+tax(?:\s*\([^)]*\))?|for\s+the\s+(?:year|period))\s*:?\s*"
+            + number_pattern,
+        ]
+        income_text = self._section_with_best_match(
             text,
-            re.IGNORECASE
+            r"\bconsolidated\s+(?:income\s+statements?|statements?\s+of\s+(?:income|operations|profit\s+and\s+loss)|statement\s+of\s+profit\s+and\s+loss)\b",
+            income_labels,
         )
-
-        income_end = re.search(
-            r"CONSOLIDATED STATEMENTS OF COMPREHENSIVE INCOME",
+        balance_labels = [
+            r"\btotal\s+assets\b\s*:?\s*" + number_pattern,
+            r"\btotal\s+liabilit(?:ies|es)\b\s*:?\s*" + number_pattern,
+            r"\b(?:long[- ]term\s+)?(?:debt|borrowings)\b\s*:?\s*" + number_pattern,
+        ]
+        balance_text = self._section_with_best_match(
             text,
-            re.IGNORECASE
+            r"\bconsolidated\s+balance\s+sheets?\b",
+            balance_labels,
         )
-
-        # ==========================================
-        # Income Statement Section
-        # ==========================================
-
-        if income_start:
-
-            start = income_start.start()
-
-            if income_end:
-                end = income_end.start()
-                income_text = text[start:end]
-
-            else:
-                income_text = text[start:start + 15000]
-
-        else:
-
-            # Fallback
-            income_text = text
-
-        # ==========================================
-        # Find Balance Sheet
-        # ==========================================
-
-        balance_start = re.search(
-            r"CONSOLIDATED BALANCE SHEETS",
-            text,
-            re.IGNORECASE
-        )
-
-        # ==========================================
-        # Balance Sheet Section
-        # ==========================================
-
-        if balance_start:
-
-            balance_text = text[
-                balance_start.start():
-                balance_start.start() + 15000
-            ]
-
-        else:
-
-            # Fallback
-            balance_text = text
 
         # ==========================================
         # Revenue
         # ==========================================
 
         revenue = self.extract_number(
-            r"\bRevenues?\b"
-            r"\s+"
+            r"\b(?:(?:total\s+)?revenues?|revenue\s+from\s+operations)\b\s*:?\s*"
             + number_pattern,
-            income_text
+            income_text,
         )
 
         if revenue:
@@ -154,10 +150,13 @@ class ExtractionAgent:
         # ==========================================
 
         net_profit = self.extract_number(
-            r"\bNet income\b"
-            r"\s+"
+            r"\bnet\s+profit\s*\(after\s+non-controlling\s+interest\)\s*:?\s*"
             + number_pattern,
-            income_text
+            income_text,
+        ) or self.extract_number(
+            r"\b(?:net\s+income|net\s+profit|profit\s+after\s+tax(?:\s*\([^)]*\))?|profit\s+for\s+the\s+(?:year|period))\s*:?\s*"
+            + number_pattern,
+            income_text,
         )
 
         if net_profit:
@@ -168,10 +167,9 @@ class ExtractionAgent:
         # ==========================================
 
         operating_profit = self.extract_number(
-            r"(?:Income from operations|Operating income|Operating profit)"
-            r"\s+"
+            r"\b(?:income\s+from\s+operations|operating\s+income|operating\s+profit)\b\s*:?\s*"
             + number_pattern,
-            income_text
+            income_text,
         )
 
         if operating_profit:
@@ -182,11 +180,9 @@ class ExtractionAgent:
         # ==========================================
 
         eps_match = re.search(
-            r"earnings\s+per\s+share"
-            r"\s*"
-            + number_pattern,
+            r"earnings\s+per\s+share\s*:?\s*" + number_pattern,
             income_text,
-            re.IGNORECASE
+            re.IGNORECASE,
         )
 
         if eps_match:
@@ -197,10 +193,8 @@ class ExtractionAgent:
         # ==========================================
 
         total_assets = self.extract_number(
-            r"\bTotal assets\b"
-            r"\s+"
-            + number_pattern,
-            balance_text
+            r"\btotal\s+assets\b\s*:?\s*" + number_pattern,
+            balance_text,
         )
 
         if total_assets:
@@ -211,10 +205,8 @@ class ExtractionAgent:
         # ==========================================
 
         total_liabilities = self.extract_number(
-            r"\bTotal liabilities\b"
-            r"\s+"
-            + number_pattern,
-            balance_text
+            r"\btotal\s+liabilit(?:ies|es)\b\s*:?\s*" + number_pattern,
+            balance_text,
         )
 
         if total_liabilities:
@@ -225,10 +217,8 @@ class ExtractionAgent:
         # ==========================================
 
         debt = self.extract_number(
-            r"\bLong-term debt\b"
-            r"\s+"
-            + number_pattern,
-            balance_text
+            r"\b(?:long[- ]term\s+)?(?:debt|borrowings)\b\s*:?\s*" + number_pattern,
+            balance_text,
         )
 
         if debt:
@@ -249,6 +239,10 @@ class ExtractionAgent:
         total_assets_value = self.clean_number(
             metrics["total_assets"]
         )
+        total_liabilities_value = self.clean_number(
+            metrics["total_liabilities"]
+        )
+        debt_value = self.clean_number(metrics["debt"])
 
         # ==========================================
         # Profit Margin
@@ -279,6 +273,16 @@ class ExtractionAgent:
                 (net_profit_value / total_assets_value) * 100,
                 2
             )
+
+        if total_assets_value is not None and total_assets_value != 0:
+            if debt_value is not None:
+                metrics["financial_ratios"]["debt_to_assets"] = round(
+                    debt_value / total_assets_value * 100, 2
+                )
+            if total_liabilities_value is not None:
+                metrics["financial_ratios"]["liabilities_to_assets"] = round(
+                    total_liabilities_value / total_assets_value * 100, 2
+                )
 
         # ==========================================
         # Return Result

@@ -1,5 +1,7 @@
 from pathlib import Path
 import hashlib
+from datetime import datetime, timezone
+import re
 import chromadb
 
 from utils.pdf_parser import extract_text_from_pdf
@@ -18,12 +20,23 @@ class DocumentAgent:
             name="financial_documents"
         )
 
+    @staticmethod
+    def company_from_filename(filename):
+        company = re.sub(
+            r"(?i)[\s_-]*(?:annual[\s_-]+report|10-k|20-f)[\s_-]*",
+            " ",
+            Path(filename).stem,
+        ).strip()
+        company = re.sub(r"(?:[\s_-]+20\d{2})+$", "", company).strip(" _-")
+        company = re.sub(r"[_-]+", " ", company).strip()
+        return company or Path(filename).stem
+
     def process_document(self, pdf_path):
 
         pdf_path = Path(pdf_path)
 
         # Dynamic company name
-        company = pdf_path.stem
+        company = self.company_from_filename(pdf_path.name)
 
         # 1. PDF → Text
         text = extract_text_from_pdf(str(pdf_path))
@@ -49,12 +62,14 @@ class DocumentAgent:
         ids = [f"{document_id}_chunk_{i}" for i in range(len(chunks))]
 
         # 6. Metadata
+        indexed_at = datetime.now(timezone.utc).isoformat()
         metadatas = [
             {
                 "document_id": document_id,
                 "company": company,
                 "document_name": pdf_path.name,
                 "chunk_number": i,
+                "indexed_at": indexed_at,
             }
             for i in range(len(chunks))
         ]

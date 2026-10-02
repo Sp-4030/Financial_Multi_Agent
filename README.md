@@ -1,17 +1,20 @@
 # Financial Multi-Agent System
 
-A local financial research and risk-analysis system for annual-report PDFs. It stores document chunks in ChromaDB and uses local LLM agents for extraction, research, and red-flag analysis without depending on external cloud services.
+A financial research and risk-analysis multi-agent system for annual-report PDFs. It stores document chunks in ChromaDB and orchestrates specialized agents for extraction, research, red-flag analysis, cross-company benchmarking, and report generation using LangGraph, FastAPI, and Streamlit.
 
 ## Milestone 3 Status
 
 Status: Complete
 
-This project has successfully completed Milestone 3 for the local financial multi-agent workflow, including:
+This project has successfully implemented all 7 Milestone 3 requirements:
 
-- PDF ingestion and indexing
-- company-aware research retrieval
-- evidence-based red-flag analysis
-- end-to-end validation using seeded annual-report documents
+- **Red Flag Agent**: Automated detection of rising debt, falling profit margins, revenue decline, net profit decline, auditor qualifications, and unusual financial patterns.
+- **Multi-Agent Orchestration Layer**: LangGraph workflow chaining Document Agent ➜ Extraction Agent ➜ Red Flag Agent with shared state and graceful error handling.
+- **Testing & Validation**: End-to-end verification covering agents, LangGraph workflow, FastAPI endpoints, and source faithfulness guarantees.
+- **Research Agent**: Multi-part question decomposition, ChromaDB vector retrieval using SentenceTransformers, fact extraction, and verifiable source citations.
+- **Comparison Agent**: Cross-company metric benchmarking across 10 financial metrics, side-by-side Markdown tables, and safe missing-value handling (`N/A`).
+- **Conversational Research Interface**: Interactive Streamlit UI with `st.chat_input` and `st.chat_message`, presenting reasoned answers, evidence bullet points, and source citations.
+- **Initial Report Agent**: Grounded report synthesis featuring Executive Summary, Key Financials, Red Flags, Peer Comparison, Research Findings, and Sources.
 
 ## Work Diagram
 
@@ -21,72 +24,72 @@ flowchart LR
     B --> C[PDF Text Extraction]
     C --> D[Chunking + Embeddings]
     D --> E[ChromaDB Vector Store]
-    E --> F[Research Agent]
-    E --> G[Extraction Agent]
-    G --> H[Financial Metrics]
-    H --> I[Red Flag Agent]
-    F --> J[Grounded Financial Q&A]
-    I --> K[Evidence-Based Risk Review]
-    J --> L[Financial Insights / Final Report]
-    K --> L
 
-    M[Local LLM via Ollama] --> F
-    M --> I
+    B --> G[Extraction Agent]
+    G --> H[Financial Metrics & Ratios]
+    H --> I[Red Flag Agent]
+
+    E --> F[Research Agent]
+    E --> M[Comparison Agent]
+    H --> N[Report Agent]
+    I --> N
+    M --> N
+
+    F --> J[Conversational Chat Q&A]
+    I --> K[Evidence-Based Risk Review]
+    M --> L[Cross-Company Benchmarking]
+    N --> P[Grounded Financial Report]
 ```
 
 ## Architecture Overview
 
 ```text
-Annual Report PDF
+Annual Report PDF Upload
         ↓
-Document Agent
+Document Agent (Text Extraction + Chunking + all-MiniLM-L6-v2 Embeddings)
         ↓
-PDF Text Extraction
+ChromaDB Persistent Vector Storage
         ↓
-Chunking + Embeddings
+Extraction Agent (10 Core Metrics + Ratios + Comparative Periods)
         ↓
-ChromaDB Storage
+Red Flag Agent (Risk Signals + Auditor Language + Pattern Detection)
         ↓
-Research + Extraction + Red-Flag Agents
+LangGraph Workflow Orchestration
         ↓
-LangGraph Workflow
-        ↓
-Financial Analysis + Risk Review
-        ↓
-Final Report / Insights
+Research Agent ──┬── Comparison Agent
+                 ↓
+      Report Agent (Executive Summary + Key Financials + Sources)
+                 ↓
+Streamlit Conversational UI (Chat + Pipeline Viewer + Benchmarking + Reports)
 ```
 
 ## ✅ Completed Features
 
-- [x] Studied financial document structures
-- [x] Finalized system architecture
-- [x] Designed multi-agent responsibilities
-- [x] Implemented document ingestion and metadata handling
-- [x] Implemented PDF extraction
-- [x] Implemented text chunking and embedding generation
-- [x] Integrated ChromaDB vector database
-- [x] Implemented multi-document indexing
-- [x] Added company-aware retrieval logic
-- [x] Implemented extraction agent for financial metrics
-- [x] Implemented financial ratio calculation
-- [x] Fixed false-positive red-flag classification logic
-- [x] Improved evidence-based research filtering
-- [x] Validated workflow on seeded annual-report PDFs
-- [x] Completed Milestone 3 requirements
+- [x] Studied financial document structures & finalized multi-agent architecture
+- [x] Implemented Document Agent with PDF parsing, text chunking, and ChromaDB vector indexing
+- [x] Implemented Extraction Agent for 10 core financial metrics & ratios (Revenue, Net Profit, Operating Profit, Total Assets, Total Liabilities, Debt, EPS, Profit Margin, ROE, ROA)
+- [x] Added comparative prior-period extraction and YoY revenue trend calculations
+- [x] Implemented Red Flag Agent for rising debt, falling margins, revenue decline, profit decline, auditor qualifications, and unusual patterns
+- [x] Implemented Multi-Agent Orchestration using LangGraph StateGraph (`DocumentAgent` ➜ `ExtractionAgent` ➜ `RedFlagAgent`)
+- [x] Implemented Research Agent with multi-part query decomposition, semantic search, and grounded chunk citations
+- [x] Implemented Comparison Agent for cross-company financial benchmarking with Markdown tables
+- [x] Implemented initial Report Agent with Executive Summary, Key Financials, Red Flags, Comparison, and Sources
+- [x] Implemented Conversational Research UI in Streamlit with `st.chat_input` and `st.chat_message`
+- [x] Built FastAPI REST endpoints (`/upload`, `/research`, `/compare`, `/report`, `/companies`, `/documents`, `/health`)
+- [x] Enforced Source Faithfulness: strictly returns `N/A` or `"No supporting information was found in the indexed documents."` without hallucinating numbers
+- [x] Validated full end-to-end workflow on seed annual-report PDFs
+- [x] Completed all Milestone 3 requirements
 
 ## 🔄 Current Focus
 
-- [ ] Formal milestone regression test suite
-- [ ] Additional PDF edge-case validation
-- [ ] UI polish and reporting improvements
+- [ ] Additional PDF edge-case validation across diverse accounting layouts
+- [ ] UI polish and styling refinements
 
 ## 📋 Upcoming Enhancements
 
-- [ ] Report agent enhancements
-- [ ] Company comparison module
-- [ ] Automated report generation
-- [ ] Final Streamlit experience refinements
-- [ ] End-to-end optimization and validation
+- [ ] Advanced graphical chart generation for multi-year trends
+- [ ] Direct PDF export for synthesized financial research reports
+- [ ] End-to-end performance optimization
 
 ---
 
@@ -125,7 +128,7 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. Run the Backend
+### 4. Run the Backend (FastAPI)
 
 From the project root:
 
@@ -139,12 +142,18 @@ Access:
 http://127.0.0.1:8000
 ```
 
-### 5. Run the Frontend
+FastAPI Interactive Docs (Swagger UI):
 
-Open a second terminal and run:
+```text
+http://127.0.0.1:8000/docs
+```
+
+### 5. Run the Frontend (Streamlit)
+
+Open a second terminal, activate the virtual environment, and run:
 
 ```bash
-streamlit run frontend/app.py
+python -m streamlit run frontend/app.py
 ```
 
 Access:
@@ -153,23 +162,30 @@ Access:
 http://localhost:8501
 ```
 
+Or on Windows, launch both backend and frontend together using:
+
+```cmd
+run_app.cmd
+```
+
 ### 6. Verify the Setup
 
-Check the backend:
+Check the backend health:
 
 ```text
-http://127.0.0.1:8000
+http://127.0.0.1:8000/health
 ```
 
 Expected response:
 
 ```json
 {
-  "status": "ok"
+  "status": "ok",
+  "milestone": "3"
 }
 ```
 
-Open the frontend here:
+Open the frontend:
 
 ```text
 http://localhost:8501
@@ -184,26 +200,23 @@ Once the app is running, the typical flow is:
 ```text
 Upload Annual Report PDF
         ↓
-Extract text from PDF
+Document Agent (Text Extraction + Chunking + Embeddings)
         ↓
-Chunk text into sections
+Store in ChromaDB Vector Database
         ↓
-Generate embeddings
+Extraction Agent (Extract 10 Core Metrics & Ratios)
         ↓
-Store in ChromaDB
+Red Flag Agent (Analyze Risks, Auditor Language & Patterns)
         ↓
-Run vector search
+Research / Comparison Agent (Multi-Part Q&A or Peer Benchmarking)
         ↓
-Analyze extracted metrics
+Report Agent (Synthesize Executive Summary + Key Financials)
         ↓
-Perform red-flag review
-        ↓
-Generate grounded financial insight
+Streamlit Conversational UI (Answer + Evidence + Sources)
 ```
 
 ## Notes
 
-- The system is designed to work locally with Ollama and ChromaDB.
-- It is intended for document-grounded financial research and risk analysis.
-- The workflow is optimized to keep answers tied to the source PDFs rather than relying on generic external knowledge.
-- Older or incompatible local database files may cause errors after changing or upgrading database dependencies. If this happens, stop the application and remove the `vector_db/` folder and `research.db` file, then restart the application to create fresh databases. This permanently deletes indexed documents and saved research records, so back up these files first if you need to keep that data. Re-upload your PDFs after the databases are recreated.
+- The system runs locally using ChromaDB vector database and SentenceTransformers (`all-MiniLM-L6-v2`) embeddings.
+- The workflow enforces source faithfulness: answers and evidence are strictly tied to indexed PDF chunks, and unsupported figures are never fabricated.
+- Older or incompatible local database files may cause errors after changing database dependencies. If this happens, stop the application and remove the `vector_db/` folder and `research.db` file, then restart the application to create fresh databases. Back up these files first if you need to keep existing data.

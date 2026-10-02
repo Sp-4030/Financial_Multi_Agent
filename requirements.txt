@@ -1,5 +1,6 @@
 # PDF processing
 pypdf
+fonttools
 
 # Document chunking
 langchain
@@ -30,5 +31,5 @@ langgraph
 # LangChain integrations
 langchain-community
 
-# Local LLM
-ollama
+# Google Gemini API
+google-genai
