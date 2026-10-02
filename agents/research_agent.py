@@ -1,17 +1,29 @@
+import os
 import re
-import ollama
 import chromadb
+from utils.gemini_client import generate_gemini_content, GeminiError
+
+
+class _OllamaCompat:
+    @staticmethod
+    def chat(model, messages, **kwargs):
+        prompt = messages[0]["content"] if messages else ""
+        text = generate_gemini_content(prompt=prompt, model=model)
+        return {"message": {"content": text}}
+
+
+ollama = _OllamaCompat()
 
 
 class ResearchAgent:
 
-    def __init__(self):
+    def __init__(self, model=None):
 
         # ==========================================
-        # Ollama Model
+        # Google Gemini Model
         # ==========================================
 
-        self.model = "llama3.2:latest"
+        self.model = model or os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 
 
         # ==========================================
@@ -86,12 +98,21 @@ class ResearchAgent:
     # ==========================================
 
     def extract_company_names(self, query):
-        candidates = []
-        cleaned = re.sub(r"[^a-zA-Z0-9\s]", " ", query)
-        for token in cleaned.split():
-            if len(token) > 2 and token.lower() not in {"what", "when", "where", "which", "company", "financial", "revenue", "net", "income", "profit", "margin", "charge", "was", "were", "its", "there", "any", "did", "the", "a", "an", "for", "in", "on"}:
-                candidates.append(token.title())
-        return list(dict.fromkeys(candidates))
+        stored_companies = {
+            str(metadata.get("company", "")).strip()
+            for metadata in (self.collection.get(include=["metadatas"]).get("metadatas") or [])
+            if metadata and str(metadata.get("company", "")).strip()
+        }
+        query_lower = query.casefold()
+        return sorted(
+            (
+                company
+                for company in stored_companies
+                if company.casefold() in query_lower
+            ),
+            key=len,
+            reverse=True,
+        )
 
     # ==========================================
     # Retrieve Documents
@@ -105,6 +126,8 @@ class ResearchAgent:
 
         if not query.strip():
             return []
+        if top_k < 1:
+            raise ValueError("top_k must be at least 1")
 
         company_hints = self.extract_company_names(query)
 
@@ -138,29 +161,6 @@ class ResearchAgent:
                 "metadata": metadata,
                 "distance": distance
             })
-
-        if not retrieved and company_hints:
-            results = self.collection.query(
-                query_texts=[query],
-                n_results=top_k,
-            )
-            documents = results.get("documents", [[]])[0]
-            metadatas = results.get("metadatas", [[]])[0]
-            distances = results.get("distances", [[]])[0]
-
-            retrieved = []
-            for i, document in enumerate(documents):
-                metadata = {}
-                if i < len(metadatas):
-                    metadata = metadatas[i] or {}
-                distance = None
-                if i < len(distances):
-                    distance = distances[i]
-                retrieved.append({
-                    "document": document,
-                    "metadata": metadata,
-                    "distance": distance
-                })
 
         return retrieved
 
@@ -282,7 +282,7 @@ IMPORTANT RULES:
 6. Preserve the meaning of the source.
 7. When giving financial numbers, keep the original
    number and unit/context when available.
-8. Cite every important factual statement using:
+8. Cite every factual sentence using:
    [Source 1], [Source 2], etc.
 9. Do not create fake source numbers.
 10. Use multiple sources when they are relevant.
@@ -291,6 +291,7 @@ IMPORTANT RULES:
     company-specific events.
 13. Do not claim fraud, wrongdoing, or investigation
     unless the source specifically provides evidence.
+14. MANDATORY CITATION RULE: Every single sentence or statement in your answer MUST be explicitly cited with [Source 1], [Source 2], etc. Do not include any introductory sentences, conversational greetings, markdown headers, or concluding remarks that lack a citation. If information is not found in the sources, cite the relevant sources stating it is not available.
 
 USER QUESTION:
 
@@ -307,34 +308,26 @@ ANSWER:
 
 
         # ==========================================
-        # Ollama
+        # Gemini / LLM Generation
         # ==========================================
 
-        try:
+        response = ollama.chat(
+            model=self.model,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        if isinstance(response, dict) and "message" in response:
+            answer = str(response["message"].get("content", "")).strip()
+        elif isinstance(response, str):
+            answer = response.strip()
+        else:
+            answer = str(response).strip()
 
-            response = ollama.chat(
-                model=self.model,
-                messages=[
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
-            )
-
-
-            answer = response[
-                "message"
-            ][
-                "content"
-            ]
-
-
-        except Exception as e:
-
-            answer = (
-                f"Research Agent error: {str(e)}"
-            )
+        answer = re.sub(
+            r"([.!?])\s*(\[Source\s+\d+\])",
+            r" \2\1",
+            answer,
+            flags=re.IGNORECASE,
+        )
 
 
         # ==========================================
@@ -369,10 +362,31 @@ ANSWER:
                 "chunk": metadata.get(
                     "chunk_number",
                     "Unknown"
-                )
+                ),
+                "document_id": metadata.get("document_id"),
 
             })
 
+        citation_numbers = [
+            int(number)
+            for number in re.findall(r"\[Source\s+(\d+)\]", answer, re.IGNORECASE)
+        ]
+        answer_sentences = [
+            sentence.strip(" -*\t")
+            for sentence in re.split(r"(?<=[.!?])\s+|\n+", answer)
+            if sentence.strip(" -*\t")
+        ]
+        has_uncited_sentence = any(
+            not re.search(r"\[Source\s+\d+\]", sentence, re.IGNORECASE)
+            for sentence in answer_sentences
+        )
+        if not citation_numbers or has_uncited_sentence or any(
+            number < 1 or number > len(sources) for number in citation_numbers
+        ):
+            answer = (
+                "I couldn't produce a fully source-cited answer from the retrieved "
+                "documents. Please refine the question or try again."
+            )
 
         return {
 
@@ -482,6 +496,15 @@ ANSWER:
 
             "total_questions": len(
                 questions
-            )
+            ),
+            "retrieval_steps": [
+                {
+                    "step": item["question_number"],
+                    "question": item["question"],
+                    "retrieved_chunks": item["retrieved_chunks"],
+                    "sources": item["sources"],
+                }
+                for item in results
+            ]
 
         }

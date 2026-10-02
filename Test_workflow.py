@@ -1,3 +1,4 @@
+from pathlib import Path
 from workflow.graph import financial_workflow
 
 
@@ -5,7 +6,11 @@ from workflow.graph import financial_workflow
 # PDF PATH
 # ==========================================
 
-pdf_path = r"C:\Users\Shantanu\Desktop\Reports\Epam.pdf"
+pdf_path = Path(r"C:\Users\Shantanu\Desktop\Reports\Epam.pdf")
+if not pdf_path.exists():
+    pdf_path = Path("data/seed_documents/Epam.pdf")
+if not pdf_path.exists():
+    pdf_path = Path("data/uploads/Epam.pdf")
 
 
 # ==========================================
@@ -13,7 +18,7 @@ pdf_path = r"C:\Users\Shantanu\Desktop\Reports\Epam.pdf"
 # ==========================================
 
 initial_state = {
-    "pdf_path": pdf_path
+    "pdf_path": str(pdf_path)
 }
 
 
@@ -159,7 +164,7 @@ for i, flag in enumerate(
 
 
     # ======================================
-    # OLLAMA AI ANALYSIS
+    # GEMINI AI ANALYSIS
     # ======================================
 
     if "ai_analysis" in flag:

@@ -5,7 +5,7 @@ DB_PATH = Path("research.db")
 
 
 def get_connection():
-    return sqlite3.connect(DB_PATH)
+    return sqlite3.connect(DB_PATH, timeout=30.0, check_same_thread=False)
 
 
 def create_tables():

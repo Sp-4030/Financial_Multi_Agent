@@ -1,14 +1,25 @@
+import os
 import re
-import ollama
+from utils.gemini_client import generate_gemini_content, GeminiError
+
+
+class _OllamaCompat:
+    @staticmethod
+    def chat(model, messages, **kwargs):
+        prompt = messages[0]["content"] if messages else ""
+        text = generate_gemini_content(prompt=prompt, model=model)
+        return {"message": {"content": text}}
+
+
+ollama = _OllamaCompat()
 
 
 class RedFlagAgent:
 
-    def __init__(self):
+    def __init__(self, model=None):
 
-        # Local Ollama Model
-
-        self.model = "llama3.2:latest"
+        # Google Gemini Model
+        self.model = model or os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
 
     # Get Context Around Keyword
 
@@ -91,11 +102,13 @@ Document context:
                 model=self.model, messages=[{"role": "user", "content": prompt}]
             )
 
-            return response["message"]["content"]
+            if isinstance(response, dict) and "message" in response:
+                return response["message"].get("content", "")
+            return str(response)
 
         except Exception as e:
 
-            return f"Ollama analysis failed: {str(e)}"
+            return f"Gemini analysis failed: {str(e)}"
 
     # Extract AI Decision
 
@@ -250,6 +263,19 @@ Document context:
             "ai_confidence": self.get_ai_confidence(ai_result),
         }
 
+    @staticmethod
+    def _metric_number(value):
+        if value is None:
+            return None
+        cleaned = re.sub(r"[₹$€, ]", "", str(value))
+        negative = cleaned.startswith("(") and cleaned.endswith(")")
+        cleaned = cleaned.strip("()")
+        try:
+            number = float(cleaned)
+        except ValueError:
+            return None
+        return -number if negative else number
+
     def _evaluate_keyword(self, keyword, text, default_severity="Medium"):
         context = self.get_context(text, keyword)
         ai_result = self.ai_analysis(context)
@@ -287,7 +313,7 @@ Document context:
 
     # Analyze Financial Document
 
-    def analyze(self, text, extracted_metrics=None):
+    def analyze(self, text, extracted_metrics=None, prior_metrics=None):
 
         red_flags = []
 
@@ -439,8 +465,117 @@ Document context:
                         "severity": "Medium",
                         "status": "Potential Concern",
                         "message": f"Profit margin is {profit_margin}%.",
+                        "evidence": f"Extracted profit margin: {profit_margin}%.",
                         "ai_decision": "Yes",
                         "ai_confidence": "Medium",
+                    }
+                )
+
+            if prior_metrics:
+                prior_debt = self._metric_number(prior_metrics.get("debt"))
+                current_debt = self._metric_number(extracted_metrics.get("debt"))
+                if (
+                    prior_debt is not None
+                    and prior_debt > 0
+                    and current_debt is not None
+                    and current_debt > prior_debt * 1.1
+                ):
+                    increase_percent = round((current_debt / prior_debt - 1) * 100, 2)
+                    red_flags.append(
+                        {
+                            "type": "Rising Debt",
+                            "severity": "Medium",
+                            "status": "Potential Concern",
+                            "message": f"Extracted debt increased by {increase_percent}% versus the prior indexed document.",
+                            "evidence": (
+                                f"Prior debt: {prior_metrics.get('debt')}; "
+                                f"current debt: {extracted_metrics.get('debt')}."
+                            ),
+                            "ai_decision": "Yes",
+                            "ai_confidence": "Medium",
+                        }
+                    )
+
+                prior_margin = self._metric_number(
+                    prior_metrics.get("financial_ratios", {}).get("profit_margin")
+                )
+                current_margin = self._metric_number(ratios.get("profit_margin"))
+                if (
+                    prior_margin is not None
+                    and current_margin is not None
+                    and prior_margin - current_margin >= 2
+                ):
+                    red_flags.append(
+                        {
+                            "type": "Falling Profit Margin",
+                            "severity": "Medium",
+                            "status": "Potential Concern",
+                            "message": (
+                                f"Profit margin fell from {prior_margin}% to "
+                                f"{current_margin}% versus the prior indexed document."
+                            ),
+                            "evidence": (
+                                f"Prior profit margin: {prior_margin}%; "
+                                f"current profit margin: {current_margin}%."
+                            ),
+                            "ai_decision": "Yes",
+                            "ai_confidence": "Medium",
+                        }
+                    )
+
+            liabilities_to_assets = self._metric_number(
+                ratios.get("liabilities_to_assets")
+            )
+            debt_to_assets = self._metric_number(ratios.get("debt_to_assets"))
+            if liabilities_to_assets is not None and liabilities_to_assets > 100:
+                red_flags.append(
+                    {
+                        "type": "Liabilities Exceed Assets",
+                        "severity": "High",
+                        "status": "Potential Concern",
+                        "message": (
+                            f"Extracted liabilities are {liabilities_to_assets}% "
+                            "of extracted assets."
+                        ),
+                        "evidence": (
+                            f"Total liabilities: {extracted_metrics.get('total_liabilities')}; "
+                            f"total assets: {extracted_metrics.get('total_assets')}."
+                        ),
+                        "ai_decision": "Yes",
+                        "ai_confidence": "Medium",
+                    }
+                )
+            elif debt_to_assets is not None and debt_to_assets > 75:
+                red_flags.append(
+                    {
+                        "type": "High Debt-to-Assets",
+                        "severity": "Medium",
+                        "status": "Potential Concern",
+                        "message": f"Extracted debt is {debt_to_assets}% of extracted assets.",
+                        "evidence": (
+                            f"Long-term debt: {extracted_metrics.get('debt')}; "
+                            f"total assets: {extracted_metrics.get('total_assets')}."
+                        ),
+                        "ai_decision": "Yes",
+                        "ai_confidence": "Medium",
+                    }
+                )
+
+            revenue = self._metric_number(extracted_metrics.get("revenue"))
+            net_profit = self._metric_number(extracted_metrics.get("net_profit"))
+            if revenue is not None and revenue > 0 and net_profit is not None and net_profit < 0:
+                red_flags.append(
+                    {
+                        "type": "Net Loss Despite Revenue",
+                        "severity": "Medium",
+                        "status": "Potential Concern",
+                        "message": "The extracted document reports positive revenue and a net loss.",
+                        "evidence": (
+                            f"Revenue: {extracted_metrics.get('revenue')}; "
+                            f"net profit: {extracted_metrics.get('net_profit')}."
+                        ),
+                        "ai_decision": "Yes",
+                        "ai_confidence": "High",
                     }
                 )
 
@@ -455,6 +590,7 @@ Document context:
                 review_items.append(flag)
 
         return {
+            "total_flags": len(red_flags),
             "detected_items": len(red_flags),
             "potential_red_flags": len(potential_red_flags),
             "review_items": len(review_items),
