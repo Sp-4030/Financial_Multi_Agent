@@ -54,7 +54,7 @@ flowchart LR
 
 The application has two entry points: the Streamlit UI invokes the workflow and agents directly, while the FastAPI service exposes REST endpoints for uploads, research, comparison, and reports. Both entry points share the financial workflow, agents, and persistent ChromaDB collection.
 
-<!-- mermaid-checked: no \n, no em-dash/en-dash, no {} in labels, subgraphs are id["label"], arrows are -->|"label"|, all subgraphs closed by end, ids unique -->
+<!-- Mermaid checked: safe labels, quoted arrow labels, unique node IDs, and all subgraphs closed. -->
 ```mermaid
 flowchart LR
     subgraph ClientLayer["Client Layer"]
