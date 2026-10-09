@@ -11,25 +11,139 @@ and annual-report layouts vary. Review every extracted metric and potential
 finding against the cited source document. Unsupported values remain `N/A` or
 `null`; a research answer is not generated without retrieved evidence.
 
-## Architecture and workflow
+## Work Diagram
 
-```text
-PDF upload
-  -> PDF text extraction
-  -> recursive text chunking
-  -> SentenceTransformer embeddings
-  -> persistent ChromaDB chunks and metadata
-  -> financial metric extraction
-  -> evidence-backed red-flag review and available prior-document comparisons
-  -> source-linked report sections
+```mermaid
+flowchart LR
+    A[Annual Report PDF] --> B[Document Agent]
+    B --> C[PDF Text Extraction]
+    C --> D[Chunking + Embeddings]
+    D --> E[ChromaDB Vector Store]
 
-Indexed chunks -> company/document-filtered research -> Gemini answer + citations
-Indexed companies/documents -> financial metric comparison table
+    B --> G[Extraction Agent]
+    G --> H[Financial Metrics & Ratios]
+    H --> I[Red Flag Agent]
+
+    E --> F[Research Agent]
+    E --> M[Comparison Agent]
+    H --> N[Report Agent]
+    I --> N
+    M --> N
+
+    F --> J[Grounded Financial Q&A]
+    I --> K[Evidence-Based Risk Review]
+    M --> L[Cross-Company Benchmarking]
+    N --> R[Final Financial Report]
+
+    J --> S[Streamlit Conversational UI]
+    K --> S
+    L --> S
+    R --> S
+
+    P[Google Gemini API] --> F
+    P --> I
+    P --> N
 ```
 
-The Streamlit frontend invokes the LangGraph workflow and agents directly. The
-FastAPI backend uses the same workflow, ChromaDB collection and shared
-workspace-rooted SQLite database.
+## Low-Level Design
+
+The application has two entry points: the Streamlit UI invokes the workflow and
+agents directly, while the FastAPI service exposes REST endpoints for uploads,
+research, comparison, and reports. Both entry points share the financial
+workflow, agents, and persistent ChromaDB collection.
+
+<!-- Mermaid checked: safe labels, quoted arrow labels, unique node IDs, and all subgraphs closed. -->
+```mermaid
+flowchart LR
+    subgraph ClientLayer["Client Layer"]
+        cStreamlit["Streamlit UI"]
+        cFastAPI["FastAPI REST API"]
+    end
+    subgraph OrchestrationLayer["Orchestration Layer"]
+        cWorkflow["LangGraph Workflow"]
+        cDocumentNode["Document Node"]
+        cExtractionNode["Extraction Node"]
+        cRedFlagNode["Red Flag Node"]
+    end
+    subgraph AgentLayer["Agent Layer"]
+        cDocumentAgent["Document Agent"]
+        cExtractionAgent["Extraction Agent"]
+        cRedFlagAgent["Red Flag Agent"]
+        cResearchAgent["Research Agent"]
+        cComparisonAgent["Comparison Agent"]
+        cReportAgent["Report Agent"]
+    end
+    subgraph DataLayer["Data Layer"]
+        cPDFParser["PDF Parser"]
+        cChunkEmbed["Chunking and Embeddings"]
+        cChroma[("ChromaDB")]
+        cSQLite[("SQLite Metadata DB")]
+    end
+    subgraph ExternalLayer["External Services"]
+        cGemini["Google Gemini API"]
+    end
+
+    cStreamlit -->|"runs analysis"| cWorkflow
+    cStreamlit -->|"uses"| cResearchAgent
+    cStreamlit -->|"uses"| cComparisonAgent
+    cStreamlit -->|"uses"| cReportAgent
+    cFastAPI -->|"uploads and analyzes"| cWorkflow
+    cFastAPI -->|"serves research"| cResearchAgent
+    cFastAPI -->|"serves comparisons"| cComparisonAgent
+    cFastAPI -->|"serves reports"| cReportAgent
+    cFastAPI -->|"stores sessions and document records"| cSQLite
+
+    cWorkflow --> cDocumentNode
+    cDocumentNode --> cExtractionNode
+    cExtractionNode --> cRedFlagNode
+    cDocumentNode --> cDocumentAgent
+    cDocumentNode -->|"loads prior company reports"| cComparisonAgent
+    cExtractionNode --> cExtractionAgent
+    cRedFlagNode --> cRedFlagAgent
+    cDocumentAgent --> cPDFParser
+    cPDFParser --> cChunkEmbed
+    cChunkEmbed -->|"upserts chunks and vectors"| cChroma
+    cResearchAgent -->|"retrieves evidence"| cChroma
+    cResearchAgent -->|"generates grounded answers"| cGemini
+    cComparisonAgent -->|"reads indexed reports"| cChroma
+    cComparisonAgent -->|"extracts comparison metrics"| cExtractionAgent
+    cRedFlagAgent -->|"analyzes evidence"| cGemini
+```
+
+### Component Inventory
+
+| Component | Layer | Type | Responsibility |
+|---|---|---|---|
+| Streamlit UI | Client | Web interface | Accepts PDFs and presents extracted metrics, risk findings, research answers, comparisons, and reports. |
+| FastAPI REST API | Client/API | REST service | Validates requests and provides health, configuration, session, document, upload, research, comparison, and report endpoints. |
+| LangGraph Workflow | Orchestration | State graph | Runs document processing, metric extraction, and red-flag analysis in sequence using shared workflow state. |
+| Document Agent | Agent | Ingestion | Extracts PDF text, chunks and embeds it, and upserts chunks with company and document metadata into ChromaDB. |
+| Extraction Agent | Agent | Metric extraction | Extracts financial metrics and ratios from report text; also supplies metrics for company comparisons. |
+| Red Flag Agent | Agent | Risk analysis | Evaluates report evidence, extracted metrics, and prior-period metrics; uses Gemini for contextual reasoning. |
+| Research Agent | Agent | Retrieval-augmented research | Retrieves relevant ChromaDB chunks and generates answers with source evidence using Gemini. |
+| Comparison Agent | Agent | Benchmarking | Groups indexed report chunks by company and compares extracted financial metrics. |
+| Report Agent | Agent | Report synthesis | Builds source-grounded report sections from provided metrics and red-flag findings. |
+| PDF Parser | Data processing | Utility | Extracts text from uploaded annual-report PDFs. |
+| Chunking and Embeddings | Data processing | Utilities | Splits extracted text and creates vectors for semantic retrieval. |
+| ChromaDB | Persistence | Vector store | Persists report chunks, embeddings, and metadata used by ingestion, research, and comparison. |
+| SQLite Metadata DB | Persistence | Relational database | Stores research sessions and uploaded-document metadata for the FastAPI service. |
+| Google Gemini API | External service | LLM API | Provides language-model reasoning for research answers and red-flag analysis. |
+
+### Data Storage and External Services
+
+ChromaDB persists indexed document chunks and embeddings in `vector_db/`;
+SentenceTransformers (`all-MiniLM-L6-v2`) creates embeddings. SQLite persists
+research sessions and document records in `research.db`. Research and risk
+analysis call Google Gemini using the configured API key and model.
+
+### Key Design Decisions
+
+- LangGraph makes PDF analysis a sequential, stateful workflow: document
+  ingestion, metric extraction, then red-flag analysis.
+- The Streamlit UI and FastAPI API are separate application entry points that
+  reuse shared workflow and agent code.
+- Research is grounded in retrieved report chunks; ChromaDB metadata supports
+  company-level filtering, comparison, and citations.
 
 ## Agent responsibilities
 
@@ -66,7 +180,9 @@ pip install -r requirements.txt
 Copy-Item .env.example .env
 ```
 
-Set the actual key in `.env` (never commit that file):
+`.env.example` is a tracked template containing placeholder values. After
+copying it, replace the placeholder with your actual Gemini API key in `.env`.
+The `.env` file is ignored by Git; never commit or share it.
 
 ```dotenv
 GEMINI_API_KEY=your_google_ai_studio_key
@@ -163,10 +279,6 @@ errors return appropriate client errors for missing sessions, non-PDF files,
 empty files, oversized files or unreadable PDFs. LLM and internal service
 failures are reported explicitly; detailed unexpected exceptions are logged
 server-side rather than returned to clients.
-
-## Tests
-
-Run the deterministic unit and service-contract tests:
 
 ```powershell
 python -m pytest -q test_financial_agents.py test_service_contracts.py
