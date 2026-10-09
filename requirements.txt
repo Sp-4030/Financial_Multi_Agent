@@ -1,35 +1,23 @@
-# PDF processing
-pypdf
-fonttools
+# PDF processing and text chunking
+pypdf>=5.0
+langchain-text-splitters>=0.3
 
-# Document chunking
-langchain
-langchain-text-splitters
+# Embeddings and persistent vector search
+sentence-transformers>=3.0
+chromadb>=0.5
 
-# Embeddings
-sentence-transformers
-torch
-torchvision
+# Configuration and API service
+python-dotenv>=1.0
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.12
 
-# Vector database
-chromadb
+# Streamlit frontend and workflow orchestration
+streamlit>=1.40
+langgraph>=0.2
 
-# Environment variables
-python-dotenv
+# Google Gemini provider
+google-genai>=1.0
 
-# Backend
-fastapi
-uvicorn
-python-multipart
-
-# Frontend
-streamlit
-
-# LangGraph workflow
-langgraph
-
-# LangChain integrations
-langchain-community
-
-# Google Gemini API
-google-genai
+# Unit and service-contract tests
+pytest>=8.0

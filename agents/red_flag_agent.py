@@ -1,6 +1,10 @@
 import os
 import re
-from utils.gemini_client import generate_gemini_content, GeminiError
+from utils.gemini_client import (
+    GeminiError,
+    generate_gemini_content,
+    is_gemini_configured,
+)
 
 
 class _OllamaCompat:
@@ -46,6 +50,8 @@ class RedFlagAgent:
 
         if not context:
             return "No context available."
+        if not is_gemini_configured():
+            return "Gemini analysis unavailable: GEMINI_API_KEY is not configured."
 
         prompt = f"""
 You are a financial annual-report analysis assistant.
@@ -219,6 +225,14 @@ Document context:
         ]
 
         for signal in strong_signals:
+            if re.search(
+                rf"\b(?:no|not|without|never|did not identify|found no)\b"
+                rf".{{0,100}}\b{re.escape(signal)}\b",
+                context_lower,
+            ):
+                return "normal"
+
+        for signal in strong_signals:
             if signal in context_lower:
                 return "significant"
 
@@ -333,7 +347,12 @@ Document context:
 
         disclaimer_opinion = re.search(r"\bdisclaimer\s+of\s+opinion\b", text_lower)
 
-        if qualified_opinion and not unqualified_opinion:
+        negated_qualified_opinion = re.search(
+            r"\b(?:no|not|without|did not issue)\b.{0,80}"
+            r"\bqualified\s+(?:audit\s+)?opinion\b",
+            text_lower,
+        )
+        if qualified_opinion and not unqualified_opinion and not negated_qualified_opinion:
             context = self.get_context(text, "qualified opinion")
             ai_result = self.ai_analysis(context)
             red_flags.append(
@@ -490,6 +509,69 @@ Document context:
                             "evidence": (
                                 f"Prior debt: {prior_metrics.get('debt')}; "
                                 f"current debt: {extracted_metrics.get('debt')}."
+                            ),
+                            "ai_decision": "Yes",
+                            "ai_confidence": "Medium",
+                        }
+                    )
+
+                prior_revenue = self._metric_number(prior_metrics.get("revenue"))
+                current_revenue = self._metric_number(extracted_metrics.get("revenue"))
+                if (
+                    prior_revenue is not None
+                    and prior_revenue > 0
+                    and current_revenue is not None
+                    and current_revenue < prior_revenue * 0.9
+                ):
+                    decrease_percent = round(
+                        (1 - current_revenue / prior_revenue) * 100,
+                        2,
+                    )
+                    red_flags.append(
+                        {
+                            "type": "Revenue Decline",
+                            "severity": "Medium",
+                            "status": "Potential Concern",
+                            "message": (
+                                f"Extracted revenue decreased by {decrease_percent}% "
+                                "versus the prior indexed document."
+                            ),
+                            "evidence": (
+                                f"Prior revenue: {prior_metrics.get('revenue')}; "
+                                f"current revenue: {extracted_metrics.get('revenue')}."
+                            ),
+                            "ai_decision": "Yes",
+                            "ai_confidence": "Medium",
+                        }
+                    )
+
+                prior_profit = self._metric_number(prior_metrics.get("net_profit"))
+                current_profit = self._metric_number(extracted_metrics.get("net_profit"))
+                if (
+                    prior_profit is not None
+                    and current_profit is not None
+                    and current_profit < prior_profit
+                    and (
+                        prior_profit == 0
+                        or (prior_profit > 0 and current_profit <= prior_profit * 0.9)
+                        or (
+                            prior_profit < 0
+                            and (prior_profit - current_profit) / abs(prior_profit) >= 0.1
+                        )
+                    )
+                ):
+                    red_flags.append(
+                        {
+                            "type": "Net Profit Decline",
+                            "severity": "Medium",
+                            "status": "Potential Concern",
+                            "message": (
+                                "Extracted net profit decreased versus the prior "
+                                "indexed document."
+                            ),
+                            "evidence": (
+                                f"Prior net profit: {prior_metrics.get('net_profit')}; "
+                                f"current net profit: {extracted_metrics.get('net_profit')}."
                             ),
                             "ai_decision": "Yes",
                             "ai_confidence": "Medium",

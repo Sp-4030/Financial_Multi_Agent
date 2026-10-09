@@ -7,18 +7,18 @@ import chromadb
 from utils.pdf_parser import extract_text_from_pdf
 from utils.chunking import split_text
 from utils.embeddings import create_embeddings
+from utils.paths import VECTOR_DB_PATH
 
 class DocumentAgent:
 
-    def __init__(self):
-
-        # Connect to ChromaDB
-        self.client = chromadb.PersistentClient(path="vector_db")
-
-        # Get collection
-        self.collection = self.client.get_or_create_collection(
-            name="financial_documents"
-        )
+    def __init__(self, collection=None):
+        self.client = None
+        if collection is None:
+            self.client = chromadb.PersistentClient(path=str(VECTOR_DB_PATH))
+            collection = self.client.get_or_create_collection(
+                name="financial_documents"
+            )
+        self.collection = collection
 
     @staticmethod
     def company_from_filename(filename):
@@ -27,6 +27,11 @@ class DocumentAgent:
             " ",
             Path(filename).stem,
         ).strip()
+        company = re.sub(
+            r"(?i)(?:[\s_-]+FY[\s_-]*20\d{2}|[\s_-]+20\d{2})+$",
+            "",
+            company,
+        ).strip(" _-")
         company = re.sub(r"(?:[\s_-]+20\d{2})+$", "", company).strip(" _-")
         company = re.sub(r"[_-]+", " ", company).strip()
         return company or Path(filename).stem
@@ -34,6 +39,8 @@ class DocumentAgent:
     def process_document(self, pdf_path):
 
         pdf_path = Path(pdf_path)
+        if not pdf_path.is_file():
+            raise FileNotFoundError(f"PDF file not found: {pdf_path}")
 
         # Dynamic company name
         company = self.company_from_filename(pdf_path.name)
@@ -52,11 +59,20 @@ class DocumentAgent:
 
         # 3. Chunks → Embeddings
         embeddings = create_embeddings(chunks)
+        if hasattr(embeddings, "tolist"):
+            embeddings = embeddings.tolist()
 
         # 4. Create unique document ID
-        file_hash = hashlib.md5(pdf_path.read_bytes()).hexdigest()[:12]
+        file_hash = hashlib.sha256(pdf_path.read_bytes()).hexdigest()[:16]
 
         document_id = f"{company}_{file_hash}"
+        year_match = re.search(
+            r"\b(?:financial\s+year|fiscal\s+year|FY)\s*[:.]?\s*"
+            r"(20\d{2})(?:\s*[-/]\s*(?:20)?\d{2})?\b",
+            text,
+            re.IGNORECASE,
+        )
+        financial_year = year_match.group(1) if year_match else ""
 
         # 5. Create unique chunk IDs
         ids = [f"{document_id}_chunk_{i}" for i in range(len(chunks))]
@@ -70,6 +86,7 @@ class DocumentAgent:
                 "document_name": pdf_path.name,
                 "chunk_number": i,
                 "indexed_at": indexed_at,
+                "financial_year": financial_year,
             }
             for i in range(len(chunks))
         ]
@@ -78,7 +95,7 @@ class DocumentAgent:
         self.collection.upsert(
             ids=ids,
             documents=chunks,
-            embeddings=embeddings.tolist(),
+            embeddings=embeddings,
             metadatas=metadatas,
         )
 
@@ -87,5 +104,6 @@ class DocumentAgent:
             "company": company,
             "document_name": pdf_path.name,
             "chunks": len(chunks),
+            "financial_year": financial_year or None,
             "status": "indexed",
         }

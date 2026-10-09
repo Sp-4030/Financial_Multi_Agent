@@ -78,11 +78,15 @@ def generate_gemini_content(
     Returns:
         Generated text string.
     """
-    primary_model = model or os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+    primary_model = model or os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     client = get_gemini_client()
 
     candidate_models = [primary_model]
-    for fallback in ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"]:
+    for fallback in [
+        "gemini-2.5-flash",
+        "gemini-2.5-flash-lite",
+        "gemini-2.0-flash",
+    ]:
         if fallback not in candidate_models:
             candidate_models.append(fallback)
 
