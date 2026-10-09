@@ -1,6 +1,7 @@
 """FastAPI backend entry point with Google Gemini API support."""
 
 from contextlib import closing
+import logging
 import os
 from pathlib import Path
 import sqlite3
@@ -10,9 +11,7 @@ from uuid import uuid4
 from dotenv import load_dotenv
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, Field
-from pypdf.errors import PdfReadError
-
+from pydantic import BaseModel, Field, field_validator
 load_dotenv()
 
 from utils.gemini_client import (
@@ -25,8 +24,10 @@ from agents.comparison_agent import ComparisonAgent
 from agents.report_agent import ReportAgent
 from agents.research_agent import ResearchAgent
 from database import get_connection, create_tables
+from utils.paths import UPLOADS_PATH
 from workflow.graph import financial_workflow
 
+logger = logging.getLogger(__name__)
 
 # FastAPI App
 app = FastAPI(
@@ -38,8 +39,8 @@ app = FastAPI(
 # CORS Middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=["http://localhost:8501", "http://127.0.0.1:8501"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -48,7 +49,7 @@ app.add_middleware(
 create_tables()
 
 # Upload folder
-UPLOAD_FOLDER = Path("data/uploads")
+UPLOAD_FOLDER = UPLOADS_PATH
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
 
 
@@ -65,6 +66,18 @@ class SessionCreate(BaseModel):
 class ResearchRequest(BaseModel):
     query: str = Field(min_length=1, max_length=5000)
     top_k: int = Field(default=5, ge=1, le=20)
+    company: str | None = Field(default=None, max_length=200)
+    document_id: str | None = Field(default=None, max_length=300)
+    conversation_history: list[dict[str, Any]] = Field(
+        default_factory=list, max_length=20
+    )
+
+    @field_validator("query")
+    @classmethod
+    def query_must_not_be_blank(cls, value: str) -> str:
+        if not value.strip():
+            raise ValueError("query must not be blank")
+        return value.strip()
 
 
 class ComparisonRequest(BaseModel):
@@ -75,6 +88,10 @@ class ReportRequest(BaseModel):
     metrics: dict[str, Any]
     red_flags: dict[str, Any] = Field(default_factory=dict)
     document_name: str = "Source document"
+    comparison: dict[str, Any] = Field(default_factory=dict)
+    findings: list[dict[str, Any]] | None = None
+    research_findings: list[dict[str, Any]] | None = None
+    sources: list[dict[str, Any]] | None = None
 
 
 class ConfigRequest(BaseModel):
@@ -88,7 +105,7 @@ def health_check() -> dict[str, Any]:
     return {
         "status": "ok",
         "llm_provider": "google_gemini",
-        "gemini_model": os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
+        "gemini_model": os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
         "gemini_configured": is_gemini_configured(),
     }
 
@@ -96,16 +113,13 @@ def health_check() -> dict[str, Any]:
 # Configuration Endpoints
 @app.get("/config")
 def get_config() -> dict[str, Any]:
-    key = get_api_key() or ""
-    if not is_gemini_configured():
-        masked_key = "not_configured"
-    else:
-        masked_key = (key[:6] + "..." + key[-4:]) if len(key) > 10 else "configured"
     return {
         "llm_provider": "google_gemini",
         "gemini_configured": is_gemini_configured(),
-        "gemini_api_key": masked_key,
-        "gemini_model": os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
+        "gemini_api_key": (
+            "configured" if is_gemini_configured() else "not_configured"
+        ),
+        "gemini_model": os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
     }
 
 
@@ -118,7 +132,7 @@ def update_config(config: ConfigRequest) -> dict[str, Any]:
     return {
         "message": "Configuration updated successfully",
         "gemini_configured": is_gemini_configured(),
-        "gemini_model": os.getenv("GEMINI_MODEL", "gemini-3.8-flash"),
+        "gemini_model": os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
     }
 
 
@@ -151,14 +165,26 @@ def create_session(session: SessionCreate):
 
 # Documents Endpoints
 @app.get("/documents")
-def list_documents(session_id: int | None = None):
+def list_documents(session_id: int | None = None, company: str | None = None):
     with closing(get_connection()) as connection:
         connection.row_factory = sqlite3.Row
-        if session_id is not None:
+        if session_id is not None and company is not None:
+            cursor = connection.execute(
+                "SELECT document_id, session_id, filename, company, file_path, status, created_at "
+                "FROM documents WHERE session_id = ? AND company = ? ORDER BY created_at DESC",
+                (session_id, company),
+            )
+        elif session_id is not None:
             cursor = connection.execute(
                 "SELECT document_id, session_id, filename, company, file_path, status, created_at "
                 "FROM documents WHERE session_id = ? ORDER BY created_at DESC",
                 (session_id,),
+            )
+        elif company is not None:
+            cursor = connection.execute(
+                "SELECT document_id, session_id, filename, company, file_path, status, created_at "
+                "FROM documents WHERE company = ? ORDER BY created_at DESC",
+                (company,),
             )
         else:
             cursor = connection.execute(
@@ -166,6 +192,23 @@ def list_documents(session_id: int | None = None):
                 "FROM documents ORDER BY created_at DESC"
             )
         return [dict(row) for row in cursor.fetchall()]
+
+
+@app.get("/companies")
+def list_companies() -> dict[str, list[str]]:
+    try:
+        companies = sorted(
+            {
+                str(document["company"])
+                for document in comparison_agent.list_indexed_documents()
+                if document.get("company")
+            },
+            key=str.casefold,
+        )
+        return {"companies": companies}
+    except Exception as exc:
+        logger.exception("Unable to list indexed companies")
+        raise HTTPException(status_code=500, detail="Unable to list companies") from exc
 
 
 # Upload Document
@@ -200,17 +243,16 @@ async def upload_document(
 
     try:
         analysis = financial_workflow.invoke({"pdf_path": str(file_path)})
-    except (PdfReadError, ValueError) as exc:
-        file_path.unlink(missing_ok=True)
+    except (ValueError, FileNotFoundError) as exc:
         raise HTTPException(
             status_code=400,
             detail=f"Unable to process the uploaded PDF: {exc}",
         ) from exc
     except Exception as exc:
-        file_path.unlink(missing_ok=True)
+        logger.exception("Document analysis failed for upload %s", filename)
         raise HTTPException(
             status_code=500,
-            detail=f"Error analyzing document: {exc}",
+            detail="Error analyzing document. Check the server logs for details.",
         ) from exc
 
     result = analysis["document_result"]
@@ -242,22 +284,40 @@ async def upload_document(
         "result": result,
         "extracted_metrics": analysis["extracted_metrics"],
         "red_flag_result": analysis["red_flag_result"],
+        "report": analysis.get("report"),
     }
 
 
 @app.post("/research")
 def research_documents(request: ResearchRequest):
     try:
-        return research_agent.research(request.query, top_k=request.top_k)
+        return research_agent.handle_query(
+            request.query,
+            top_k=request.top_k,
+            company=request.company,
+            document_id=request.document_id,
+            conversation_history=request.conversation_history,
+        )
     except GeminiError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Research failed: {exc}") from exc
+        logger.exception("Financial research failed")
+        raise HTTPException(
+            status_code=500,
+            detail="Research failed. Check the server logs for details.",
+        ) from exc
 
 
 @app.post("/compare")
 def compare_documents(request: ComparisonRequest):
-    return comparison_agent.compare(request.companies)
+    try:
+        return comparison_agent.compare(request.companies)
+    except Exception as exc:
+        logger.exception("Company comparison failed")
+        raise HTTPException(
+            status_code=500,
+            detail="Company comparison failed. Check the server logs for details.",
+        ) from exc
 
 
 @app.post("/report")
@@ -266,4 +326,8 @@ def generate_report(request: ReportRequest):
         request.metrics,
         request.red_flags,
         request.document_name,
+        comparison=request.comparison,
+        findings=request.findings,
+        research_findings=request.research_findings,
+        sources=request.sources,
     )

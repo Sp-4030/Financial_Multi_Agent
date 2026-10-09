@@ -78,11 +78,13 @@ class ExtractionAgent:
     def extract_metrics(self, text):
 
         metrics = {
+            "financial_year": None,
             "revenue": None,
             "net_profit": None,
             "operating_profit": None,
             "total_assets": None,
             "total_liabilities": None,
+            "shareholders_equity": None,
             "debt": None,
             "eps": None,
 
@@ -124,13 +126,25 @@ class ExtractionAgent:
         balance_labels = [
             r"\btotal\s+assets\b\s*:?\s*" + number_pattern,
             r"\btotal\s+liabilit(?:ies|es)\b\s*:?\s*" + number_pattern,
-            r"\b(?:long[- ]term\s+)?(?:debt|borrowings)\b\s*:?\s*" + number_pattern,
+            r"\b(?:long[- ]term|short[- ]term|current)?\s*(?:debt|borrowings)\b\s*:?\s*"
+            + number_pattern,
+            r"\b(?:total\s+)?(?:shareholders'?|stockholders'?)\s+equity\b\s*:?\s*"
+            + number_pattern,
         ]
         balance_text = self._section_with_best_match(
             text,
             r"\bconsolidated\s+balance\s+sheets?\b",
             balance_labels,
         )
+
+        financial_year = re.search(
+            r"\b(?:financial\s+year|fiscal\s+year|FY)\s*[:.]?\s*"
+            r"(20\d{2})(?:\s*[-/]\s*(?:20)?\d{2})?\b",
+            text,
+            re.IGNORECASE,
+        )
+        if financial_year:
+            metrics["financial_year"] = financial_year.group(1)
 
         # ==========================================
         # Revenue
@@ -180,11 +194,18 @@ class ExtractionAgent:
         # ==========================================
 
         eps_match = re.search(
-            r"earnings\s+per\s+share\s*:?\s*" + number_pattern,
+            r"\b(?:(?:basic|diluted)\s+)?earnings\s+per\s+share\b"
+            r"(?:\s*\([^)]*\))?\s*:?\s*" + number_pattern,
             income_text,
             re.IGNORECASE,
         )
 
+        if not eps_match:
+            eps_match = re.search(
+                r"\b(?:basic|diluted)\s+EPS\b\s*:?\s*" + number_pattern,
+                income_text,
+                re.IGNORECASE,
+            )
         if eps_match:
             metrics["eps"] = eps_match.group(1)
 
@@ -212,12 +233,21 @@ class ExtractionAgent:
         if total_liabilities:
             metrics["total_liabilities"] = total_liabilities
 
+        shareholders_equity = self.extract_number(
+            r"\b(?:total\s+)?(?:shareholders'?|stockholders'?)\s+equity\b"
+            r"\s*:?\s*" + number_pattern,
+            balance_text,
+        )
+        if shareholders_equity:
+            metrics["shareholders_equity"] = shareholders_equity
+
         # ==========================================
         # Long-Term Debt
         # ==========================================
 
         debt = self.extract_number(
-            r"\b(?:long[- ]term\s+)?(?:debt|borrowings)\b\s*:?\s*" + number_pattern,
+            r"\b(?:(?:long[- ]term|short[- ]term|current)\s+)?"
+            r"(?:total\s+)?(?:debt|borrowings)\b\s*:?\s*" + number_pattern,
             balance_text,
         )
 
@@ -242,6 +272,7 @@ class ExtractionAgent:
         total_liabilities_value = self.clean_number(
             metrics["total_liabilities"]
         )
+        equity_value = self.clean_number(metrics["shareholders_equity"])
         debt_value = self.clean_number(metrics["debt"])
 
         # ==========================================
@@ -272,6 +303,16 @@ class ExtractionAgent:
             metrics["financial_ratios"]["roa"] = round(
                 (net_profit_value / total_assets_value) * 100,
                 2
+            )
+
+        if (
+            equity_value is not None
+            and net_profit_value is not None
+            and equity_value != 0
+        ):
+            metrics["financial_ratios"]["roe"] = round(
+                (net_profit_value / equity_value) * 100,
+                2,
             )
 
         if total_assets_value is not None and total_assets_value != 0:
