@@ -23,7 +23,7 @@ class RedFlagAgent:
     def __init__(self, model=None):
 
         # Google Gemini Model
-        self.model = model or os.getenv("GEMINI_MODEL", "gemini-3.8-flash")
+        self.model = model or os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 
     # Get Context Around Keyword
 
@@ -281,14 +281,14 @@ Document context:
     def _metric_number(value):
         if value is None:
             return None
-        cleaned = re.sub(r"[₹$€, ]", "", str(value))
+        cleaned = re.sub(r"(?i)Rs\.?|INR|[₹$€, ]", "", str(value))
         negative = cleaned.startswith("(") and cleaned.endswith(")")
         cleaned = cleaned.strip("()")
         try:
             number = float(cleaned)
         except ValueError:
             return None
-        return -number if negative else number
+        return -abs(number) if negative else number
 
     def _evaluate_keyword(self, keyword, text, default_severity="Medium"):
         context = self.get_context(text, keyword)

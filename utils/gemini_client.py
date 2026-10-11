@@ -78,14 +78,16 @@ def generate_gemini_content(
     Returns:
         Generated text string.
     """
-    primary_model = model or os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    primary_model = model or os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
     client = get_gemini_client()
 
     candidate_models = [primary_model]
     for fallback in [
-        "gemini-2.5-flash",
-        "gemini-2.5-flash-lite",
-        "gemini-2.0-flash",
+        "gemini-3.5-flash",
+        "gemini-3.5-flash-lite",
+        "gemini-3.1-flash-lite",
+        "gemini-flash-lite-latest",
+        "gemini-3.8-flash",
     ]:
         if fallback not in candidate_models:
             candidate_models.append(fallback)
@@ -114,8 +116,11 @@ def generate_gemini_content(
                 err_msg = str(exc)
                 if "API_KEY_INVALID" in err_msg or ("400" in err_msg and "key" in err_msg.lower()):
                     raise GeminiError(f"Invalid Google Gemini API key: {err_msg}") from exc
-                # If model is unavailable (503), rate limited (429), or deprecated (404), try next attempt or model
-                if any(code in err_msg for code in ("503", "UNAVAILABLE", "429", "RESOURCE_EXHAUSTED", "404", "NOT_FOUND")):
+                # If model is not found (404) or daily quota exhausted, immediately advance to next candidate model
+                if any(code in err_msg for code in ("404", "NOT_FOUND", "RESOURCE_EXHAUSTED", "Quota exceeded")):
+                    break
+                # If transient concurrency / availability error, brief backoff and retry
+                if any(code in err_msg for code in ("503", "UNAVAILABLE", "429")):
                     time.sleep(0.5 * (attempt + 1))
                     continue
                 raise GeminiError(f"Gemini API error: {err_msg}") from exc

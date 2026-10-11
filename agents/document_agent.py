@@ -72,7 +72,23 @@ class DocumentAgent:
             text,
             re.IGNORECASE,
         )
+        if not year_match:
+            year_match = re.search(
+                r"\b(?:fiscal\s+year|financial\s+year|years?)\s+ended\s+[A-Za-z]+\s+\d{1,2},?\s*(20\d{2})\b",
+                text,
+                re.IGNORECASE,
+            )
+        if not year_match:
+            year_match = re.search(
+                r"\b(?:annual\s+report|10-k|form\s+10-k|integrated\s+report)[^\n\r]{0,80}?\b(20\d{2})\b",
+                text,
+                re.IGNORECASE,
+            )
         financial_year = year_match.group(1) if year_match else ""
+        if not financial_year:
+            file_year = re.search(r"\b(?:FY\s*)?(20\d{2})\b", pdf_path.name, re.IGNORECASE)
+            if file_year:
+                financial_year = file_year.group(1)
 
         # 5. Create unique chunk IDs
         ids = [f"{document_id}_chunk_{i}" for i in range(len(chunks))]

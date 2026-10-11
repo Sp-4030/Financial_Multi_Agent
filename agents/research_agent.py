@@ -35,7 +35,7 @@ class ResearchAgent:
         # Google Gemini Model
         # ==========================================
 
-        self.model = model or os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+        self.model = model or os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 
 
         # ==========================================
