@@ -933,13 +933,16 @@ elif page == "Research Chat":
         )
         for item in document_options
     ]
+    valid_doc_options = ["All matching documents", *document_labels]
+    if st.session_state.get("research_document") not in valid_doc_options:
+        st.session_state["research_document"] = "All matching documents"
     selected_document_label = st.selectbox(
         "Document scope",
-        ["All matching documents", *document_labels],
+        valid_doc_options,
         key="research_document",
     )
     selected_document_id = None
-    if selected_document_label != "All matching documents":
+    if selected_document_label != "All matching documents" and selected_document_label in document_labels:
         selected_document_id = document_options[
             document_labels.index(selected_document_label)
         ]["document_id"]

@@ -143,6 +143,18 @@ class ExtractionAgent:
             text,
             re.IGNORECASE,
         )
+        if not financial_year:
+            financial_year = re.search(
+                r"\b(?:fiscal\s+year|financial\s+year|years?)\s+ended\s+[A-Za-z]+\s+\d{1,2},?\s*(20\d{2})\b",
+                text,
+                re.IGNORECASE,
+            )
+        if not financial_year:
+            financial_year = re.search(
+                r"\b(?:annual\s+report|10-k|form\s+10-k|integrated\s+report)[^\n\r]{0,80}?\b(20\d{2})\b",
+                text,
+                re.IGNORECASE,
+            )
         if financial_year:
             metrics["financial_year"] = financial_year.group(1)
 

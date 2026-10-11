@@ -1,4 +1,4 @@
-﻿# Financial Multi-Agent System
+# Financial Multi-Agent System
 
 A local financial-report research and analysis application for annual-report PDFs. The project combines PDF extraction, semantic retrieval, financial metric extraction, risk review, and an interactive UI for research and comparison.
 
@@ -54,6 +54,7 @@ Financial_Multi_Agent/
 ├── backend/
 │   └── main.py
 ├── data/
+│   ├── seed_documents/
 │   └── uploads/
 ├── frontend/
 │   └── app.py
@@ -68,6 +69,7 @@ Financial_Multi_Agent/
 ├── database.py
 ├── requirements.txt
 ├── run_app.cmd
+├── run.ps1
 ├── research.db
 ├── vector_db/
 ├── .env
@@ -89,7 +91,7 @@ Create a `.env` file in the project root and add your key. Do not commit this fi
 
 ```dotenv
 GEMINI_API_KEY=your_google_ai_studio_key
-GEMINI_MODEL=gemini-2.5-flash
+GEMINI_MODEL=gemini-3.5-flash
 ```
 
 Optional overrides are supported for local data locations:
@@ -102,7 +104,7 @@ FINANCIAL_UPLOAD_DIR=data/uploads
 
 Notes:
 - `GOOGLE_API_KEY` is also accepted by the client code.
-- `GEMINI_MODEL` is optional; the code falls back to a default Gemini model when it is not set.
+- `GEMINI_MODEL` defaults to `gemini-3.5-flash` with automatic fallback across active models (`gemini-3.5-flash-lite`, `gemini-3.1-flash-lite`, `gemini-flash-lite-latest`) when quota or rate limits are reached.
 - Relative paths resolve from the repository root.
 
 ## Installation
@@ -130,11 +132,16 @@ Start the UI in another terminal:
 python -m streamlit run frontend/app.py --server.address 127.0.0.1 --server.port 8501
 ```
 
-Windows convenience script:
+Windows convenience scripts:
 
-```powershell
-run_app.cmd
-```
+- PowerShell:
+  ```powershell
+  .\run.ps1
+  ```
+- Command Prompt:
+  ```cmd
+  run_app.cmd
+  ```
 
 Open the app here:
 - Streamlit UI: http://127.0.0.1:8501
@@ -195,15 +202,11 @@ Upload constraints:
 - `agents/comparison_agent.py` groups and compares company documents
 - `agents/report_agent.py` assembles report sections from extracted data
 
-## Test and validation notes
+## Validation
 
-This repo includes unit and contract-style tests for the financial workflow and API behavior. The project is designed to avoid contacting the live Gemini API during test execution unless a specific integration test is intentionally run.
-
-Common local validation command:
-
-```powershell
-python -m pytest -q
-```
+The system components can be verified directly through:
+- **Streamlit Interface**: Open http://127.0.0.1:8501, upload an annual report PDF from the sidebar, review extracted metrics on the Dashboard, query financial facts in Research Chat, run cross-company comparisons, and generate source-linked reports.
+- **FastAPI Endpoints**: Open interactive API documentation at http://127.0.0.1:8000/docs or inspect `/health` to verify service readiness and Gemini connectivity.
 
 ## Limitations and cautions
 

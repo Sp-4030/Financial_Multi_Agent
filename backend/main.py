@@ -105,7 +105,7 @@ def health_check() -> dict[str, Any]:
     return {
         "status": "ok",
         "llm_provider": "google_gemini",
-        "gemini_model": os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+        "gemini_model": os.getenv("GEMINI_MODEL", "gemini-3.5-flash"),
         "gemini_configured": is_gemini_configured(),
     }
 
@@ -119,7 +119,7 @@ def get_config() -> dict[str, Any]:
         "gemini_api_key": (
             "configured" if is_gemini_configured() else "not_configured"
         ),
-        "gemini_model": os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+        "gemini_model": os.getenv("GEMINI_MODEL", "gemini-3.5-flash"),
     }
 
 
@@ -132,7 +132,7 @@ def update_config(config: ConfigRequest) -> dict[str, Any]:
     return {
         "message": "Configuration updated successfully",
         "gemini_configured": is_gemini_configured(),
-        "gemini_model": os.getenv("GEMINI_MODEL", "gemini-2.5-flash"),
+        "gemini_model": os.getenv("GEMINI_MODEL", "gemini-3.5-flash"),
     }
 
 
@@ -291,11 +291,27 @@ async def upload_document(
 @app.post("/research")
 def research_documents(request: ResearchRequest):
     try:
+        resolved_doc_id = request.document_id
+        if resolved_doc_id:
+            with closing(get_connection()) as connection:
+                connection.row_factory = sqlite3.Row
+                row = connection.execute(
+                    "SELECT filename, company FROM documents WHERE document_id = ?",
+                    (resolved_doc_id,),
+                ).fetchone()
+                if row:
+                    for doc in comparison_agent.list_indexed_documents():
+                        if doc.get("document") == row["filename"] and (
+                            not row["company"] or doc.get("company") == row["company"]
+                        ):
+                            resolved_doc_id = doc.get("document_id")
+                            break
+
         return research_agent.handle_query(
             request.query,
             top_k=request.top_k,
             company=request.company,
-            document_id=request.document_id,
+            document_id=resolved_doc_id,
             conversation_history=request.conversation_history,
         )
     except GeminiError as exc:
