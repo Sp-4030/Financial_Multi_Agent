@@ -59,8 +59,11 @@ class ComparisonAgent:
                 group.pop("chunks"),
                 key=lambda item: (0, int(item[0])) if isinstance(item[0], (int, str)) and str(item[0]).isdigit() else (1, str(item[0])),
             )
-            text = "\n".join(chunk for _, chunk in ordered_chunks)
-            group["metrics"] = self.extraction_agent.extract_metrics(text)
+            group["metrics"] = self.extraction_agent.extract_metrics(
+                text,
+                company=group["company"],
+                document_name=group["document"],
+            )
             group["financial_year"] = (
                 group["financial_year"] or group["metrics"].get("financial_year")
             )

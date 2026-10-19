@@ -18,3 +18,4 @@ def configured_path(environment_variable: str, default: Path) -> Path:
 DATABASE_PATH = configured_path("FINANCIAL_DB_PATH", PROJECT_ROOT / "research.db")
 VECTOR_DB_PATH = configured_path("CHROMA_DB_PATH", PROJECT_ROOT / "vector_db")
 UPLOADS_PATH = configured_path("FINANCIAL_UPLOAD_DIR", PROJECT_ROOT / "data" / "uploads")
+REPORTS_PATH = configured_path("FINANCIAL_REPORTS_DIR", PROJECT_ROOT / "data" / "reports")

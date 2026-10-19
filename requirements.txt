@@ -1,5 +1,6 @@
-# PDF processing and text chunking
+# PDF processing, generation, and text chunking
 pypdf>=5.0
+reportlab>=4.0
 langchain-text-splitters>=0.3
 
 # Embeddings and persistent vector search
