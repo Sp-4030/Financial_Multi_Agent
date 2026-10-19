@@ -562,11 +562,21 @@ class ResearchAgent:
                 if not any(name.casefold() == indexed.casefold() for indexed in indexed_companies)
             ]
             if missing_companies:
-                message = (
-                    "No indexed report was found for "
-                    + ", ".join(missing_companies)
-                    + ". Upload and index that company's report to include it."
-                )
+                if len(target_names) >= 2:
+                    indexed_part = [name for name in target_names if name not in missing_companies]
+                    message = (
+                        f"A complete comparison between {', '.join(target_names)} cannot be performed "
+                        f"because no indexed report was found for {', '.join(missing_companies)}. "
+                        f"Please upload and index the annual report for {', '.join(missing_companies)} to enable side-by-side comparison."
+                    )
+                    if indexed_part:
+                        message += f" Available metrics for {', '.join(indexed_part)} are provided below for reference only."
+                else:
+                    message = (
+                        "No indexed report was found for "
+                        + ", ".join(missing_companies)
+                        + ". Upload and index that company's report to include it."
+                    )
                 sections.append(message)
                 result["companies_not_indexed"] = missing_companies
 
@@ -1050,8 +1060,9 @@ class ResearchAgent:
         candidates = [part.strip(" \t'\".,?!") for part in match.groups()]
         candidates = [
             re.sub(
-                r"\b(?:revenue|net profit|profit|eps|roe|roa|debt|assets|"
-                r"financial years?|available years?)\b.*$",
+                r"\b(?:using|based\s+on|in\s+terms\s+of|on|for|by|with\s+respect\s+to|across|"
+                r"revenue|net profit|profit|operating profit|eps|roe|roa|debt|assets|"
+                r"financial metrics?|metrics?|financial years?|available years?|available metrics?)\b.*$",
                 "",
                 candidate,
                 flags=re.IGNORECASE,
@@ -1063,10 +1074,22 @@ class ResearchAgent:
         for candidate in candidates:
             match_name = next(
                 (name for name in indexed if name.casefold() == candidate.casefold()),
-                candidate,
+                None,
             )
-            if match_name not in resolved:
-                resolved.append(match_name)
+            if not match_name:
+                match_name = next(
+                    (name for name in indexed if candidate.casefold().startswith(name.casefold())),
+                    None,
+                )
+            if not match_name:
+                first_tok = candidate.split()[0] if candidate.split() else candidate
+                match_name = next(
+                    (name for name in indexed if name.casefold() == first_tok.casefold()),
+                    None,
+                )
+            resolved_candidate = match_name or (candidate.split()[0] if candidate.split() else candidate)
+            if resolved_candidate not in resolved:
+                resolved.append(resolved_candidate)
         return resolved or mentioned
 
     def _company_candidates(self, query):
@@ -1080,7 +1103,7 @@ class ResearchAgent:
             "extract", "show", "tell", "please", "latest", "available",
             "financial", "revenue", "profit", "income", "debt", "assets",
             "liabilities", "report", "company", "companies", "and", "vs",
-            "versus", "with",
+            "versus", "with", "using", "their", "metrics", "metric",
         }
         tokens = re.findall(r"\b[A-Z][A-Za-z0-9&.-]*(?:'s)?\b", query)
         candidates = []
@@ -1121,6 +1144,8 @@ class ResearchAgent:
                 "company": metadata.get("company", "Unknown"),
                 "document": metadata.get("document_name", "Unknown"),
                 "chunk": metadata.get("chunk_number", "Unknown"),
+                "page": metadata.get("page_number"),
+                "page_number": metadata.get("page_number"),
                 "document_id": metadata.get("document_id"),
             }
             sources.append(source)
@@ -1309,8 +1334,18 @@ class ResearchAgent:
         distances = results.get("distances", [[]])[0]
 
         retrieved = []
+        seen_passages = set()
 
         for i, document in enumerate(documents):
+            # Passage deduplication
+            clean_doc = re.sub(r"\s+", " ", str(document or "")).strip()
+            if not clean_doc:
+                continue
+            fingerprint = clean_doc[:120].casefold()
+            if fingerprint in seen_passages:
+                continue
+            seen_passages.add(fingerprint)
+
             metadata = {}
             if i < len(metadatas):
                 metadata = metadatas[i] or {}
@@ -1371,6 +1406,8 @@ class ResearchAgent:
                 "chunk_number",
                 "Unknown"
             )
+            page_number = metadata.get("page_number")
+            page_line = f"\nPage: {page_number}" if page_number is not None else ""
 
 
             source_block = f"""
@@ -1378,7 +1415,7 @@ class ResearchAgent:
 
 Company: {company}
 
-Document: {document_name}
+Document: {document_name}{page_line}
 
 Chunk: {chunk_number}
 
@@ -1526,6 +1563,8 @@ ANSWER:
                     "chunk_number",
                     "Unknown"
                 ),
+                "page": metadata.get("page_number"),
+                "page_number": metadata.get("page_number"),
                 "document_id": metadata.get("document_id"),
 
             })

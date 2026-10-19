@@ -4,8 +4,8 @@ from datetime import datetime, timezone
 import re
 import chromadb
 
-from utils.pdf_parser import extract_text_from_pdf
-from utils.chunking import split_text
+from utils.pdf_parser import extract_text_from_pdf, extract_pages_from_pdf
+from utils.chunking import split_text, split_pages
 from utils.embeddings import create_embeddings
 from utils.paths import VECTOR_DB_PATH
 
@@ -45,14 +45,21 @@ class DocumentAgent:
         # Dynamic company name
         company = self.company_from_filename(pdf_path.name)
 
-        # 1. PDF → Text
-        text = extract_text_from_pdf(str(pdf_path))
+        # 1. PDF → Pages & Text
+        try:
+            pages = extract_pages_from_pdf(str(pdf_path))
+            text = "\n\n".join(p["text"] for p in pages)
+            chunk_items = split_pages(pages)
+        except Exception:
+            text = extract_text_from_pdf(str(pdf_path))
+            raw_chunks = split_text(text)
+            chunk_items = [{"text": c, "page_number": 1} for c in raw_chunks]
 
         if not text.strip():
             raise ValueError("No text found in PDF")
 
         # 2. Text → Chunks
-        chunks = split_text(text)
+        chunks = [item["text"] for item in chunk_items]
 
         if not chunks:
             raise ValueError("No chunks created from PDF")
@@ -93,7 +100,7 @@ class DocumentAgent:
         # 5. Create unique chunk IDs
         ids = [f"{document_id}_chunk_{i}" for i in range(len(chunks))]
 
-        # 6. Metadata
+        # 6. Metadata (including page_number)
         indexed_at = datetime.now(timezone.utc).isoformat()
         metadatas = [
             {
@@ -101,6 +108,7 @@ class DocumentAgent:
                 "company": company,
                 "document_name": pdf_path.name,
                 "chunk_number": i,
+                "page_number": chunk_items[i].get("page_number", 1),
                 "indexed_at": indexed_at,
                 "financial_year": financial_year,
             }
